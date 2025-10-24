@@ -22,14 +22,14 @@ class WaveformWidget(QWidget):
         self.is_speech_buffer = [False] * buffer_size
         self.current_index = 0
 
-        # Colors
-        self.bg_color = QColor(30, 30, 30)
-        self.silence_color = QColor(100, 100, 100)
-        self.speech_color = QColor(76, 175, 80)  # Green for speech
-        self.grid_color = QColor(50, 50, 50)
+        # Colors - updated for new minimal design
+        self.bg_color = QColor(10, 10, 10)  # Match window background
+        self.silence_color = QColor(60, 60, 60)  # Darker gray
+        self.speech_color = QColor(229, 165, 165)  # Pink to match buttons
+        self.grid_color = QColor(30, 30, 30)  # Subtle grid
 
-        # Set minimum size
-        self.setMinimumSize(300, 80)
+        # Set minimum size (height will be flexible)
+        self.setMinimumSize(300, 60)
 
         # Update timer for smooth animation
         self.update_timer = QTimer(self)
