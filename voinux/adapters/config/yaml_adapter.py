@@ -131,6 +131,23 @@ vad:
   # WebRTC VAD aggressiveness (0-3, higher = more aggressive)
   aggressiveness: 2
 
+# Noise Suppression Configuration
+noise_suppression:
+  # Enable noise suppression to remove background noise (keyboard, fans, etc.)
+  enabled: true
+
+  # Use stationary noise reduction (good for constant background noise like fans, hums)
+  stationary: true
+
+  # Proportion to reduce noise (0.0-1.0, 1.0 = maximum reduction)
+  prop_decrease: 1.0
+
+  # Frequency smoothing in Hz (higher = smoother but less precise)
+  freq_mask_smooth_hz: 500
+
+  # Time smoothing in milliseconds (higher = smoother but less responsive)
+  time_mask_smooth_ms: 50
+
 # Keyboard Simulation Configuration
 keyboard:
   # Keyboard backend: auto (detect), xdotool (X11), ydotool (Wayland), stdout (testing)

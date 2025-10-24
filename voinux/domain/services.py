@@ -16,6 +16,7 @@ from voinux.domain.entities import (
 from voinux.domain.exceptions import SessionError, TranscriptionError
 from voinux.domain.ports import (
     IAudioCapture,
+    IAudioProcessor,
     IKeyboardSimulator,
     ISpeechRecognizer,
     IVoiceActivationDetector,
@@ -40,6 +41,7 @@ class TranscriptionPipeline:
         session: TranscriptionSession,
         buffer_config: BufferConfig | None = None,
         vad_enabled: bool = True,
+        noise_suppressor: IAudioProcessor | None = None,
         on_audio_chunk: Callable[[AudioChunk, bool], None] | None = None,
     ) -> None:
         """Initialize the transcription pipeline.
@@ -52,6 +54,7 @@ class TranscriptionPipeline:
             session: Transcription session for tracking statistics
             buffer_config: Buffer configuration (uses defaults if None)
             vad_enabled: Whether to use VAD filtering
+            noise_suppressor: Optional noise suppression processor
             on_audio_chunk: Optional callback for each audio chunk (chunk, is_speech)
         """
         self.audio_capture = audio_capture
@@ -61,6 +64,7 @@ class TranscriptionPipeline:
         self.session = session
         self.buffer_config = buffer_config or BufferConfig()
         self.vad_enabled = vad_enabled
+        self.noise_suppressor = noise_suppressor
         self.on_audio_chunk = on_audio_chunk
         self._running = False
         self._stop_event: asyncio.Event | None = None
@@ -114,6 +118,8 @@ class TranscriptionPipeline:
         await self.audio_capture.stop()
         await self.recognizer.shutdown()
         await self.vad.shutdown()
+        if self.noise_suppressor:
+            await self.noise_suppressor.shutdown()
         self.session.end()
 
         logger.info("Transcription pipeline stopped")
@@ -135,6 +141,10 @@ class TranscriptionPipeline:
         Args:
             audio_chunk: Audio chunk to process
         """
+        # Apply noise suppression if enabled
+        if self.noise_suppressor:
+            audio_chunk = await self.noise_suppressor.process(audio_chunk)
+
         # Initialize speech buffer on first chunk
         if self._speech_buffer is None:
             self._speech_buffer = SpeechBuffer(

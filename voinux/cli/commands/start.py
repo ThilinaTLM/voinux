@@ -34,7 +34,7 @@ def start(
     device: str | None,
     language: str | None,
     no_vad: bool,
-    _continuous: bool,  # Reserved for future use
+    continuous: bool,  # Reserved for future use
     gui: bool,
 ) -> None:
     """Start real-time voice transcription.

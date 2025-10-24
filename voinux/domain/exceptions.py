@@ -31,6 +31,12 @@ class VADError(VoinuxError):
     pass
 
 
+class NoiseSuppressionError(VoinuxError):
+    """Exception raised when noise suppression fails."""
+
+    pass
+
+
 class ModelDownloadError(VoinuxError):
     """Exception raised when model download fails."""
 

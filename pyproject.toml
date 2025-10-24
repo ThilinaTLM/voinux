@@ -25,6 +25,7 @@ dependencies = [
     "soundcard>=0.4.2",
     "pyaudio>=0.2.13",
     "webrtcvad>=2.0.10",
+    "noisereduce>=3.0.0",
     "click>=8.0.0",
     "pyyaml>=6.0",
     "rich>=13.0.0",
@@ -75,7 +76,7 @@ disallow_untyped_defs = true
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
-module = ["webrtcvad", "faster_whisper", "faster_whisper.*", "soundcard", "qasync", "click", "rich", "rich.*", "PyQt6", "PyQt6.*", "numpy", "numpy.*", "torch", "torch.*"]
+module = ["webrtcvad", "faster_whisper", "faster_whisper.*", "soundcard", "qasync", "click", "rich", "rich.*", "PyQt6", "PyQt6.*", "numpy", "numpy.*", "torch", "torch.*", "noisereduce", "noisereduce.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

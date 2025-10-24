@@ -10,6 +10,7 @@ from voinux.application.factories import (
     create_audio_capture,
     create_keyboard_simulator,
     create_model_manager,
+    create_noise_suppressor,
     create_speech_recognizer,
     create_vad,
 )
@@ -93,6 +94,7 @@ class StartTranscription:
             logger.info("Initializing components")
             audio_capture = await create_audio_capture(self.config)
             vad = await create_vad(self.config)
+            noise_suppressor = await create_noise_suppressor(self.config)
             recognizer = await create_speech_recognizer(self.config)
             keyboard = await create_keyboard_simulator(self.config)
             logger.info("All components initialized successfully")
@@ -113,6 +115,7 @@ class StartTranscription:
                 session=session,
                 buffer_config=buffer_config,
                 vad_enabled=self.config.vad.enabled,
+                noise_suppressor=noise_suppressor,
                 on_audio_chunk=on_audio_chunk,
             )
 

@@ -135,6 +135,42 @@ class IVoiceActivationDetector(ABC):
         ...
 
 
+class IAudioProcessor(ABC):
+    """Port for processing audio (noise suppression, filtering, etc.)."""
+
+    @abstractmethod
+    async def initialize(self, sample_rate: int) -> None:
+        """Initialize the audio processor with given parameters.
+
+        Args:
+            sample_rate: Audio sample rate in Hz
+
+        Raises:
+            NoiseSuppressionError: If initialization fails
+        """
+        ...
+
+    @abstractmethod
+    async def process(self, audio_chunk: AudioChunk) -> AudioChunk:
+        """Process an audio chunk (e.g., remove noise).
+
+        Args:
+            audio_chunk: Audio data to process
+
+        Returns:
+            AudioChunk: Processed audio data
+
+        Raises:
+            NoiseSuppressionError: If processing fails
+        """
+        ...
+
+    @abstractmethod
+    async def shutdown(self) -> None:
+        """Shut down the processor and release resources."""
+        ...
+
+
 class IModelManager(ABC):
     """Port for managing Whisper models (download, cache, etc.)."""
 

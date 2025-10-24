@@ -54,6 +54,17 @@ class BufferingConfig:
 
 
 @dataclass
+class NoiseSuppressionConfig:
+    """Configuration for noise suppression."""
+
+    enabled: bool = True  # Whether noise suppression is enabled
+    stationary: bool = True  # Use stationary noise reduction (fans, hums, etc.)
+    prop_decrease: float = 1.0  # Proportion to reduce noise (0.0-1.0, 1.0 = maximum)
+    freq_mask_smooth_hz: int = 500  # Frequency smoothing in Hz
+    time_mask_smooth_ms: int = 50  # Time smoothing in milliseconds
+
+
+@dataclass
 class SystemConfig:
     """System-level configuration."""
 
@@ -72,6 +83,7 @@ class Config:
     vad: VADConfig = field(default_factory=VADConfig)
     keyboard: KeyboardConfig = field(default_factory=KeyboardConfig)
     buffering: BufferingConfig = field(default_factory=BufferingConfig)
+    noise_suppression: NoiseSuppressionConfig = field(default_factory=NoiseSuppressionConfig)
     system: SystemConfig = field(default_factory=SystemConfig)
 
     @classmethod
@@ -145,6 +157,20 @@ class Config:
                 f"min_utterance_duration_ms must be >= 0, got {self.buffering.min_utterance_duration_ms}"
             )
 
+        # Validate noise suppression config
+        if not 0.0 <= self.noise_suppression.prop_decrease <= 1.0:
+            raise ValueError(
+                f"prop_decrease must be between 0.0 and 1.0, got {self.noise_suppression.prop_decrease}"
+            )
+        if self.noise_suppression.freq_mask_smooth_hz < 0:
+            raise ValueError(
+                f"freq_mask_smooth_hz must be >= 0, got {self.noise_suppression.freq_mask_smooth_hz}"
+            )
+        if self.noise_suppression.time_mask_smooth_ms < 0:
+            raise ValueError(
+                f"time_mask_smooth_ms must be >= 0, got {self.noise_suppression.time_mask_smooth_ms}"
+            )
+
         # Validate log level
         valid_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if self.system.log_level.upper() not in valid_log_levels:
@@ -171,6 +197,9 @@ class Config:
             vad=VADConfig(**{**vars(self.vad), **overrides.get("vad", {})}),
             keyboard=KeyboardConfig(**{**vars(self.keyboard), **overrides.get("keyboard", {})}),
             buffering=BufferingConfig(**{**vars(self.buffering), **overrides.get("buffering", {})}),
+            noise_suppression=NoiseSuppressionConfig(
+                **{**vars(self.noise_suppression), **overrides.get("noise_suppression", {})}
+            ),
             system=SystemConfig(**{**vars(self.system), **overrides.get("system", {})}),
         )
         new_config.validate()

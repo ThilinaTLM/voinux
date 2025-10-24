@@ -7,11 +7,13 @@ from voinux.adapters.keyboard.stdout_adapter import StdoutKeyboard
 from voinux.adapters.keyboard.xdotool_adapter import XDotoolKeyboard
 from voinux.adapters.keyboard.ydotool_adapter import YDotoolKeyboard
 from voinux.adapters.models.model_cache import ModelCache
+from voinux.adapters.noise.noisereduce_adapter import NoiseReduceProcessor
 from voinux.adapters.stt.whisper_adapter import WhisperRecognizer
 from voinux.adapters.vad.webrtc_adapter import WebRTCVAD
 from voinux.config.config import Config
 from voinux.domain.ports import (
     IAudioCapture,
+    IAudioProcessor,
     IKeyboardSimulator,
     IModelManager,
     ISpeechRecognizer,
@@ -52,6 +54,28 @@ async def create_vad(config: Config) -> IVoiceActivationDetector:
         sample_rate=config.audio.sample_rate,
     )
     return vad
+
+
+async def create_noise_suppressor(config: Config) -> IAudioProcessor | None:
+    """Create a noise suppression adapter based on configuration.
+
+    Args:
+        config: Application configuration
+
+    Returns:
+        IAudioProcessor | None: Noise suppressor adapter, or None if disabled
+    """
+    if not config.noise_suppression.enabled:
+        return None
+
+    processor = NoiseReduceProcessor(
+        stationary=config.noise_suppression.stationary,
+        prop_decrease=config.noise_suppression.prop_decrease,
+        freq_mask_smooth_hz=config.noise_suppression.freq_mask_smooth_hz,
+        time_mask_smooth_ms=config.noise_suppression.time_mask_smooth_ms,
+    )
+    await processor.initialize(sample_rate=config.audio.sample_rate)
+    return processor
 
 
 async def create_speech_recognizer(config: Config) -> ISpeechRecognizer:
