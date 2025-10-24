@@ -4,7 +4,7 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Callable, Optional
 
 from voinux.domain.entities import (
     AudioChunk,
@@ -40,6 +40,7 @@ class TranscriptionPipeline:
         session: TranscriptionSession,
         buffer_config: Optional[BufferConfig] = None,
         vad_enabled: bool = True,
+        on_audio_chunk: Optional[Callable[[AudioChunk, bool], None]] = None,
     ) -> None:
         """Initialize the transcription pipeline.
 
@@ -51,6 +52,7 @@ class TranscriptionPipeline:
             session: Transcription session for tracking statistics
             buffer_config: Buffer configuration (uses defaults if None)
             vad_enabled: Whether to use VAD filtering
+            on_audio_chunk: Optional callback for each audio chunk (chunk, is_speech)
         """
         self.audio_capture = audio_capture
         self.vad = vad
@@ -59,6 +61,7 @@ class TranscriptionPipeline:
         self.session = session
         self.buffer_config = buffer_config or BufferConfig()
         self.vad_enabled = vad_enabled
+        self.on_audio_chunk = on_audio_chunk
         self._running = False
         self._stop_event: Optional[asyncio.Event] = None
         self._speech_buffer: Optional[SpeechBuffer] = None
@@ -163,6 +166,10 @@ class TranscriptionPipeline:
 
         # Record chunk in session statistics
         self.session.record_chunk(is_speech=is_speech)
+
+        # Call audio chunk callback if provided (for GUI updates)
+        if self.on_audio_chunk:
+            self.on_audio_chunk(audio_chunk, is_speech)
 
         # Add chunk to buffer
         self._speech_buffer.add_chunk(audio_chunk, is_speech)

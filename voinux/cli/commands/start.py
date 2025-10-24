@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @click.option("--language", "-l", type=str, help="Target language code (e.g., 'en', 'es')")
 @click.option("--no-vad", is_flag=True, help="Disable voice activation detection")
 @click.option("--continuous", "-c", is_flag=True, help="Continuous mode (restart on errors)")
+@click.option("--gui", is_flag=True, help="Launch GUI instead of CLI interface")
 @click.pass_context
 def start(
     ctx: click.Context,
@@ -31,12 +32,45 @@ def start(
     language: Optional[str],
     no_vad: bool,
     continuous: bool,
+    gui: bool,
 ) -> None:
     """Start real-time voice transcription.
 
-    Press Ctrl+C to stop transcription.
+    Press Ctrl+C to stop transcription (CLI mode).
+    Use the Stop button or system tray to stop (GUI mode).
     """
     console: Console = ctx.obj["console"]
+
+    # If GUI mode, launch GUI and return early
+    if gui:
+        logger.info("Launching GUI mode")
+
+        async def _start_gui() -> None:
+            # Load configuration
+            config_file = ctx.obj.get("config_file")
+            loader = ConfigLoader(config_file=config_file)
+
+            # Build CLI overrides
+            cli_overrides = {}
+            if model:
+                cli_overrides.setdefault("faster_whisper", {})["model"] = model
+            if device:
+                cli_overrides.setdefault("faster_whisper", {})["device"] = device
+            if language:
+                cli_overrides.setdefault("faster_whisper", {})["language"] = language
+            if no_vad:
+                cli_overrides.setdefault("vad", {})["enabled"] = False
+
+            config = await loader.load(cli_overrides=cli_overrides)
+            return config
+
+        # Get config
+        config = asyncio.run(_start_gui())
+
+        # Import and run GUI
+        from voinux.gui.main import run_gui
+        run_gui(config)
+        return
 
     async def _start() -> None:
         logger.info("Start command invoked")

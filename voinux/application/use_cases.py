@@ -36,11 +36,13 @@ class StartTranscription:
     async def execute(
         self,
         on_status_change: Optional[Callable[[str], None]] = None,
+        on_audio_chunk: Optional[Callable[[any, bool], None]] = None,  # type: ignore[valid-type]
     ) -> TranscriptionSession:
         """Execute the transcription use case.
 
         Args:
             on_status_change: Callback for status updates
+            on_audio_chunk: Optional callback for each audio chunk (chunk, is_speech)
 
         Returns:
             TranscriptionSession: The completed session
@@ -107,6 +109,7 @@ class StartTranscription:
                 session=session,
                 buffer_config=buffer_config,
                 vad_enabled=self.config.vad.enabled,
+                on_audio_chunk=on_audio_chunk,
             )
 
             # Set up signal handlers for graceful shutdown
