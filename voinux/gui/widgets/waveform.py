@@ -9,12 +9,12 @@ from PyQt6.QtWidgets import QWidget
 class WaveformWidget(QWidget):
     """Widget that displays a live audio waveform visualization."""
 
-    def __init__(self, parent=None, buffer_size: int = 100):
+    def __init__(self, parent=None, buffer_size: int = 50):
         """Initialize the waveform widget.
 
         Args:
             parent: Parent widget
-            buffer_size: Number of audio level samples to display
+            buffer_size: Number of audio level samples to display (default 50 = 5 seconds at 100ms chunks)
         """
         super().__init__(parent)
         self.buffer_size = buffer_size
@@ -28,8 +28,8 @@ class WaveformWidget(QWidget):
         self.speech_color = QColor(229, 165, 165)  # Pink to match buttons
         self.grid_color = QColor(30, 30, 30)  # Subtle grid
 
-        # Set minimum size (height will be flexible)
-        self.setMinimumSize(300, 60)
+        # Set minimum size (height will be flexible) - compact for smaller window
+        self.setMinimumSize(200, 35)
 
         # Update timer for smooth animation
         self.update_timer = QTimer(self)
@@ -88,11 +88,13 @@ class WaveformWidget(QWidget):
             color = self.speech_color if is_speech else self.silence_color
             painter.setPen(QPen(color, bar_width))
 
-            # Draw bar from center
-            bar_height = level * (height / 2) * 0.9  # 90% of half height
+            # Draw bar from center - use more vertical space for richer visualization
+            bar_height = level * (height / 2) * 0.95  # 95% of half height for more impact
             x = i * bar_width
 
-            # Draw top and bottom bars
+            # Draw top and bottom bars with thicker lines for better visibility
+            pen_width = max(2, bar_width)
+            painter.setPen(QPen(color, pen_width))
             painter.drawLine(
                 int(x), int(center_y - bar_height), int(x), int(center_y + bar_height)
             )

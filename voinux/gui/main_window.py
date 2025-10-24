@@ -33,9 +33,9 @@ class FloatingPanel(QWidget):
             | Qt.WindowType.Tool  # Don't show in taskbar
         )
 
-        # Set fixed window size
+        # Set fixed window size - compact layout
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-        self.setFixedSize(560, 180)
+        self.setFixedSize(320, 100)
 
         # Dragging state
         self.dragging = False
@@ -44,6 +44,8 @@ class FloatingPanel(QWidget):
         # Session state
         self.is_recording = True  # Start in recording state
         self.session_start: datetime | None = None
+        self.paused_duration: float = 0.0  # Track paused time when stopped
+        self.pause_start: datetime | None = None  # When pause started
         self.utterances = 0
         self.characters = 0
 
@@ -57,32 +59,32 @@ class FloatingPanel(QWidget):
 
     def _build_ui(self) -> None:
         """Build the user interface."""
-        # Main layout
+        # Main layout - compact margins and spacing
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(15, 15, 15, 15)
-        main_layout.setSpacing(8)
+        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setSpacing(4)
 
         # Top section: buttons + timer + stats
         top_layout = QHBoxLayout()
-        top_layout.setSpacing(15)
+        top_layout.setSpacing(8)
 
-        # Left button (stop/play toggle)
+        # Left button (stop/play toggle) - compact size
         self.action_button = QPushButton()
-        self.action_button.setFixedSize(80, 80)
-        self.action_button.setIcon(load_svg_icon("stop", 40))
+        self.action_button.setFixedSize(45, 45)
+        self.action_button.setIcon(load_svg_icon("stop", 24))
         self.action_button.setIconSize(self.action_button.size() * 0.5)
         self.action_button.setStyleSheet(
             """
             QPushButton {
-                background-color: #E5A5A5;
+                background-color: #B85555;
                 border: none;
-                border-radius: 20px;
+                border-radius: 12px;
             }
             QPushButton:hover {
-                background-color: #EEB5B5;
+                background-color: #C86565;
             }
             QPushButton:pressed {
-                background-color: #D59595;
+                background-color: #A84545;
             }
         """
         )
@@ -94,39 +96,39 @@ class FloatingPanel(QWidget):
         center_layout.setSpacing(2)
         center_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Timer label
+        # Timer label - compact font size
         self.timer_label = QLabel("00:00")
-        self.timer_label.setFont(QFont("Sans", 24, QFont.Weight.Bold))
+        self.timer_label.setFont(QFont("Sans", 18, QFont.Weight.Bold))
         self.timer_label.setStyleSheet("color: #FFFFFF; background: transparent;")
         self.timer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         center_layout.addWidget(self.timer_label)
 
-        # Compact stats label
+        # Compact stats label - smaller font
         self.stats_label = QLabel("0 utterances • 0 chars")
-        self.stats_label.setFont(QFont("Sans", 9))
+        self.stats_label.setFont(QFont("Sans", 7))
         self.stats_label.setStyleSheet("color: #888888; background: transparent;")
         self.stats_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         center_layout.addWidget(self.stats_label)
 
         top_layout.addLayout(center_layout, 1)
 
-        # Right button (close)
+        # Right button (close) - compact size
         self.close_button = QPushButton()
-        self.close_button.setFixedSize(80, 80)
-        self.close_button.setIcon(load_svg_icon("close", 40))
+        self.close_button.setFixedSize(45, 45)
+        self.close_button.setIcon(load_svg_icon("close", 24))
         self.close_button.setIconSize(self.close_button.size() * 0.5)
         self.close_button.setStyleSheet(
             """
             QPushButton {
-                background-color: #E5A5A5;
+                background-color: #B85555;
                 border: none;
-                border-radius: 20px;
+                border-radius: 12px;
             }
             QPushButton:hover {
-                background-color: #EEB5B5;
+                background-color: #C86565;
             }
             QPushButton:pressed {
-                background-color: #D59595;
+                background-color: #A84545;
             }
         """
         )
@@ -135,9 +137,9 @@ class FloatingPanel(QWidget):
 
         main_layout.addLayout(top_layout)
 
-        # Waveform widget (takes remaining space)
+        # Waveform widget (takes remaining space) - compact height
         self.waveform = WaveformWidget(self)
-        self.waveform.setMinimumHeight(60)
+        self.waveform.setMinimumHeight(35)
         main_layout.addWidget(self.waveform, 1)  # Stretch factor 1
 
         # Set main layout
@@ -156,14 +158,19 @@ class FloatingPanel(QWidget):
     def _on_action_button_clicked(self) -> None:
         """Handle action button click (stop/play toggle)."""
         if self.is_recording:
-            # Stop button clicked
+            # Stop button clicked - pause the timer
             self.stop_requested.emit()
             self.is_recording = False
-            self.action_button.setIcon(load_svg_icon("play", 40))
+            self.pause_start = datetime.now()
+            self.action_button.setIcon(load_svg_icon("play", 24))
         else:
             # Play/resume button clicked (currently not used, but ready for future)
             self.is_recording = True
-            self.action_button.setIcon(load_svg_icon("stop", 40))
+            # Add the paused duration to total
+            if self.pause_start:
+                self.paused_duration += (datetime.now() - self.pause_start).total_seconds()
+                self.pause_start = None
+            self.action_button.setIcon(load_svg_icon("stop", 24))
 
     def _update_duration(self) -> None:
         """Update the duration display."""
@@ -171,9 +178,19 @@ class FloatingPanel(QWidget):
             self.timer_label.setText("00:00")
             return
 
-        elapsed = datetime.now() - self.session_start
-        minutes = int(elapsed.total_seconds() // 60)
-        seconds = int(elapsed.total_seconds() % 60)
+        # Calculate elapsed time
+        if self.is_recording:
+            # Currently recording - show active elapsed time
+            elapsed = (datetime.now() - self.session_start).total_seconds() - self.paused_duration
+        else:
+            # Paused - show frozen elapsed time
+            if self.pause_start:
+                elapsed = (self.pause_start - self.session_start).total_seconds() - self.paused_duration
+            else:
+                elapsed = 0
+
+        minutes = int(elapsed // 60)
+        seconds = int(elapsed % 60)
         self.timer_label.setText(f"{minutes:02d}:{seconds:02d}")
 
     def mousePressEvent(self, event) -> None:
@@ -210,11 +227,13 @@ class FloatingPanel(QWidget):
     def start_session(self) -> None:
         """Start a new transcription session."""
         self.session_start = datetime.now()
+        self.paused_duration = 0.0
+        self.pause_start = None
         self.utterances = 0
         self.characters = 0
         self.is_recording = True
         self.waveform.reset()
-        self.action_button.setIcon(load_svg_icon("stop", 40))
+        self.action_button.setIcon(load_svg_icon("stop", 24))
         self._update_stats_display()
 
     def update_stats(self, utterances: int, characters: int) -> None:
@@ -256,3 +275,4 @@ class FloatingPanel(QWidget):
         """Show UI feedback that stopping is in progress."""
         self.action_button.setEnabled(False)
         self.is_recording = False
+        self.pause_start = datetime.now()

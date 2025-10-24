@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtCore import QByteArray, QSize
+from PyQt6.QtCore import QByteArray, QSize, Qt
 
 # Assets directory
 ASSETS_DIR = Path(__file__).parent
@@ -29,7 +29,7 @@ def load_svg_icon(icon_name: str, size: int = 48) -> QIcon:
     # Load SVG and render to pixmap
     renderer = QSvgRenderer(str(svg_path))
     pixmap = QPixmap(QSize(size, size))
-    pixmap.fill(0)  # Transparent background
+    pixmap.fill(Qt.GlobalColor.transparent)  # Transparent background
 
     from PyQt6.QtGui import QPainter
 
