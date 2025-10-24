@@ -37,7 +37,7 @@ def start(
     """Start real-time voice transcription.
 
     Press Ctrl+C to stop transcription (CLI mode).
-    Use the Stop button or system tray to stop (GUI mode).
+    Use the Stop button to stop (GUI mode).
     """
     console: Console = ctx.obj["console"]
 

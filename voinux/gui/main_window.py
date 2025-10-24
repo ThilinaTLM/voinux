@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
 )
 
 from voinux.gui.assets import load_svg_icon
-from voinux.gui.widgets.waveform import WaveformWidget
 
 
 class FloatingPanel(QWidget):
@@ -21,6 +20,8 @@ class FloatingPanel(QWidget):
 
     # Signals
     stop_requested = pyqtSignal()
+    start_requested = pyqtSignal()
+    close_requested = pyqtSignal()
 
     def __init__(self):
         """Initialize the floating panel."""
@@ -35,7 +36,7 @@ class FloatingPanel(QWidget):
 
         # Set fixed window size - compact layout
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-        self.setFixedSize(320, 100)
+        self.setFixedSize(320, 80)
 
         # Dragging state
         self.dragging = False
@@ -132,15 +133,10 @@ class FloatingPanel(QWidget):
             }
         """
         )
-        self.close_button.clicked.connect(self.hide)
+        self.close_button.clicked.connect(self.close_requested.emit)
         top_layout.addWidget(self.close_button)
 
         main_layout.addLayout(top_layout)
-
-        # Waveform widget (takes remaining space) - compact height
-        self.waveform = WaveformWidget(self)
-        self.waveform.setMinimumHeight(35)
-        main_layout.addWidget(self.waveform, 1)  # Stretch factor 1
 
         # Set main layout
         self.setLayout(main_layout)
@@ -164,12 +160,12 @@ class FloatingPanel(QWidget):
             self.pause_start = datetime.now()
             self.action_button.setIcon(load_svg_icon("play", 24))
         else:
-            # Play/resume button clicked (currently not used, but ready for future)
+            # Play/resume button clicked - start new session
+            self.start_requested.emit()
             self.is_recording = True
-            # Add the paused duration to total
-            if self.pause_start:
-                self.paused_duration += (datetime.now() - self.pause_start).total_seconds()
-                self.pause_start = None
+            # Reset timing for new session
+            self.paused_duration = 0.0
+            self.pause_start = None
             self.action_button.setIcon(load_svg_icon("stop", 24))
 
     def _update_duration(self) -> None:
@@ -232,7 +228,6 @@ class FloatingPanel(QWidget):
         self.utterances = 0
         self.characters = 0
         self.is_recording = True
-        self.waveform.reset()
         self.action_button.setIcon(load_svg_icon("stop", 24))
         self._update_stats_display()
 
@@ -251,15 +246,6 @@ class FloatingPanel(QWidget):
         """Update the compact stats label."""
         self.stats_label.setText(f"{self.utterances} utterances • {self.characters} chars")
 
-    def add_audio_data(self, audio_data, is_speech: bool = False) -> None:
-        """Add audio data to waveform.
-
-        Args:
-            audio_data: Audio data (numpy array)
-            is_speech: Whether this is speech
-        """
-        self.waveform.add_audio_data(audio_data, is_speech)
-
     def set_status(self, status: str, is_error: bool = False) -> None:
         """Set the status message.
 
@@ -276,3 +262,9 @@ class FloatingPanel(QWidget):
         self.action_button.setEnabled(False)
         self.is_recording = False
         self.pause_start = datetime.now()
+
+    def show_stopped(self) -> None:
+        """Re-enable the button after stopping is complete."""
+        self.action_button.setEnabled(True)
+        self.is_recording = False
+        self.action_button.setIcon(load_svg_icon("play", 24))
