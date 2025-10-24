@@ -4,6 +4,7 @@ import asyncio
 import logging
 import signal
 from collections.abc import Callable
+from typing import Any
 
 from voinux.application.factories import (
     create_audio_capture,
@@ -36,7 +37,7 @@ class StartTranscription:
     async def execute(
         self,
         on_status_change: Callable[[str], None] | None = None,
-        on_audio_chunk: Callable[[any, bool], None] | None = None,  # type: ignore[valid-type]
+        on_audio_chunk: Callable[[Any, bool], None] | None = None,
         install_signal_handlers: bool = True,
     ) -> TranscriptionSession:
         """Execute the transcription use case.
@@ -135,11 +136,11 @@ class StartTranscription:
             # Get completed session
             completed_session = self.session_manager.end_current_session()
             logger.info("Transcription use case completed")
-            return completed_session if completed_session else session
-
         except Exception as e:
             logger.error("Failed to start transcription: %s", e, exc_info=True)
             raise InitializationError(f"Failed to start transcription: {e}") from e
+        else:
+            return completed_session if completed_session else session
 
     async def stop(self) -> None:
         """Stop the transcription pipeline."""
@@ -160,7 +161,7 @@ class TestAudio:
         """
         self.config = config
 
-    async def execute(self, duration_seconds: int = 5) -> dict[str, any]:  # type: ignore[valid-type]
+    async def execute(self, duration_seconds: int = 5) -> dict[str, Any]:
         """Test audio capture for a specified duration.
 
         Args:
@@ -209,7 +210,7 @@ class TestGPU:
         """
         self.config = config
 
-    async def execute(self) -> dict[str, any]:  # type: ignore[valid-type]
+    async def execute(self) -> dict[str, Any]:
         """Test GPU availability.
 
         Returns:
@@ -217,7 +218,7 @@ class TestGPU:
         """
         import torch
 
-        results = {
+        results: dict[str, Any] = {
             "cuda_available": torch.cuda.is_available(),
             "device_count": 0,
             "devices": [],

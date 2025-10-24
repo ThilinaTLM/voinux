@@ -95,26 +95,25 @@ async def create_keyboard_simulator(config: Config) -> IKeyboardSimulator:
     if backend == "auto":
         # Auto-detect based on display server
         return await _auto_detect_keyboard(config)
-    elif backend == "xdotool":
-        keyboard = XDotoolKeyboard(
+    if backend == "xdotool":
+        keyboard: IKeyboardSimulator = XDotoolKeyboard(
             typing_delay_ms=config.keyboard.typing_delay_ms,
             add_space_after=config.keyboard.add_space_after,
         )
         if not await keyboard.is_available():
             raise RuntimeError("xdotool not available")
         return keyboard
-    elif backend == "ydotool":
-        keyboard = YDotoolKeyboard(
+    if backend == "ydotool":
+        keyboard_ydotool: IKeyboardSimulator = YDotoolKeyboard(
             typing_delay_ms=config.keyboard.typing_delay_ms,
             add_space_after=config.keyboard.add_space_after,
         )
-        if not await keyboard.is_available():
+        if not await keyboard_ydotool.is_available():
             raise RuntimeError("ydotool not available")
-        return keyboard
-    elif backend == "stdout":
+        return keyboard_ydotool
+    if backend == "stdout":
         return StdoutKeyboard(add_space_after=config.keyboard.add_space_after)
-    else:
-        raise ValueError(f"Unknown keyboard backend: {backend}")
+    raise ValueError(f"Unknown keyboard backend: {backend}")
 
 
 async def _auto_detect_keyboard(config: Config) -> IKeyboardSimulator:

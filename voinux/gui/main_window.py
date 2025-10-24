@@ -197,9 +197,7 @@ class FloatingPanel(QWidget):
             elapsed = (datetime.now() - self.session_start).total_seconds() - self.paused_duration
         # Paused - show frozen elapsed time
         elif self.pause_start:
-            elapsed = (
-                self.pause_start - self.session_start
-            ).total_seconds() - self.paused_duration
+            elapsed = (self.pause_start - self.session_start).total_seconds() - self.paused_duration
         else:
             elapsed = 0
 

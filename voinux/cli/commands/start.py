@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from typing import Any
 
 import click
 from rich.console import Console
@@ -9,6 +10,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from voinux.application.use_cases import StartTranscription
+from voinux.config.config import Config
 from voinux.config.loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
@@ -32,7 +34,7 @@ def start(
     device: str | None,
     language: str | None,
     no_vad: bool,
-    continuous: bool,
+    _continuous: bool,  # Reserved for future use
     gui: bool,
 ) -> None:
     """Start real-time voice transcription.
@@ -46,13 +48,13 @@ def start(
     if gui:
         logger.info("Launching GUI mode")
 
-        async def _start_gui() -> None:
+        async def _start_gui() -> Config:
             # Load configuration
             config_file = ctx.obj.get("config_file")
             loader = ConfigLoader(config_file=config_file)
 
             # Build CLI overrides
-            cli_overrides = {}
+            cli_overrides: dict[str, Any] = {}
             if model:
                 cli_overrides.setdefault("faster_whisper", {})["model"] = model
             if device:
@@ -62,8 +64,7 @@ def start(
             if no_vad:
                 cli_overrides.setdefault("vad", {})["enabled"] = False
 
-            config = await loader.load(cli_overrides=cli_overrides)
-            return config
+            return await loader.load(cli_overrides=cli_overrides)
 
         # Get config
         config = asyncio.run(_start_gui())
@@ -82,7 +83,7 @@ def start(
         loader = ConfigLoader(config_file=config_file)
 
         # Build CLI overrides
-        cli_overrides = {}
+        cli_overrides: dict[str, Any] = {}
         if model:
             cli_overrides.setdefault("faster_whisper", {})["model"] = model
         if device:
@@ -168,6 +169,6 @@ def start(
         except Exception as e:
             logger.error("Error during transcription: %s", e, exc_info=True)
             console.print(f"\n[red]Error: {e}[/red]")
-            raise click.Abort()
+            raise click.Abort() from e
 
     asyncio.run(_start())

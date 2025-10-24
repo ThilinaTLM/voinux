@@ -25,7 +25,7 @@ class IAudioCapture(ABC):
         ...
 
     @abstractmethod
-    async def stream(self) -> AsyncIterator[AudioChunk]:
+    def stream(self) -> AsyncIterator[AudioChunk]:
         """Stream audio chunks as they are captured.
 
         Yields:

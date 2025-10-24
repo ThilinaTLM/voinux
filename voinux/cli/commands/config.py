@@ -30,9 +30,7 @@ def config_show(ctx: click.Context) -> None:
         config = await loader.load()
 
         # Convert to dict for display
-        from voinux.config.loader import ConfigLoader as CL
-
-        config_dict = CL(config_file)._config_to_dict(config)
+        config_dict = ConfigLoader(config_file)._config_to_dict(config)
 
         # Display as YAML
         yaml_str = yaml.safe_dump(config_dict, default_flow_style=False, sort_keys=False)

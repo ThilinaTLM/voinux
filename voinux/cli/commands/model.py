@@ -101,7 +101,7 @@ def model_download(ctx: click.Context, model_name: str, force: bool) -> None:
 
         except Exception as e:
             console.print(f"[red]✗ Download failed: {e}[/red]")
-            raise click.Abort()
+            raise click.Abort() from e
 
     asyncio.run(_download())
 

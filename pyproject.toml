@@ -71,6 +71,22 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+# Allow untyped decorators (needed for Click CLI decorators)
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = ["webrtcvad", "faster_whisper", "faster_whisper.*", "soundcard", "qasync", "click", "rich", "rich.*", "PyQt6", "PyQt6.*", "numpy", "numpy.*", "torch", "torch.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["voinux.cli.*"]
+# Ignore untyped decorators from Click
+disable_error_code = ["misc"]
+
+[[tool.mypy.overrides]]
+module = ["voinux.gui.*"]
+# GUI code has some unavoidable type issues with Qt and qasync
+disable_error_code = ["no-untyped-def", "no-untyped-call", "union-attr", "type-arg", "misc"]
 
 [tool.ruff]
 line-length = 100
@@ -115,3 +131,9 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[dependency-groups]
+dev = [
+    "types-click>=7.1.8",
+    "types-pyyaml>=6.0.12.20250915",
+]

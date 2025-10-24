@@ -48,7 +48,7 @@ def _setup_cuda_environment() -> None:
                     if not os.environ.get("_VOINUX_LD_LIBRARY_PATH_SET"):
                         os.environ["_VOINUX_LD_LIBRARY_PATH_SET"] = "1"
                         # Restart the process with updated environment
-                        os.execve(sys.executable, [sys.executable] + sys.argv, os.environ)
+                        os.execve(sys.executable, [sys.executable, *sys.argv], os.environ)
     except Exception:
         pass  # Fail silently, system CUDA libraries may still work
 
@@ -59,7 +59,10 @@ _setup_cuda_environment()
 import asyncio  # noqa: E402
 import logging  # noqa: E402
 import logging.handlers  # noqa: E402
+import pathlib  # noqa: E402
+from collections.abc import Coroutine  # noqa: E402
 from pathlib import Path  # noqa: E402
+from typing import Any  # noqa: E402
 
 import click  # noqa: E402
 from rich.console import Console  # noqa: E402
@@ -114,7 +117,7 @@ def setup_logging(log_level: str = "INFO", log_file: Path | None = None) -> None
 @click.version_option(version="1.0.0", prog_name="voinux")
 @click.option(
     "--config-file",
-    type=click.Path(path_type=Path),
+    type=click.Path(path_type=pathlib.Path),  # type: ignore[type-var]
     default=None,
     help="Path to configuration file",
 )
@@ -165,7 +168,7 @@ def cli(
     setup_logging(log_level=effective_log_level)
 
 
-def run_async(coro):
+def run_async(coro: Coroutine[Any, Any, Any]) -> Any:
     """Helper to run async functions in Click commands."""
     return asyncio.run(coro)
 

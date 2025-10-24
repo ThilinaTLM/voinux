@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import warnings
+from typing import ClassVar
 
 import numpy as np
 
@@ -21,7 +22,7 @@ class WebRTCVAD(IVoiceActivationDetector):
     """Adapter using WebRTC VAD for voice activation detection."""
 
     # WebRTC VAD only supports specific sample rates
-    SUPPORTED_SAMPLE_RATES = [8000, 16000, 32000, 48000]
+    SUPPORTED_SAMPLE_RATES: ClassVar[list[int]] = [8000, 16000, 32000, 48000]
 
     # WebRTC VAD requires specific frame sizes (10, 20, or 30 ms)
     FRAME_DURATION_MS = 30
@@ -144,12 +145,11 @@ class WebRTCVAD(IVoiceActivationDetector):
                 speech_ratio,
                 is_speech,
             )
-
-            return is_speech
-
         except Exception as e:
             logger.error("Failed to detect speech: %s", e, exc_info=True)
             raise VADError(f"Failed to detect speech: {e}") from e
+        else:
+            return is_speech
 
     async def shutdown(self) -> None:
         """Shut down the VAD and release resources."""

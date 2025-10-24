@@ -116,9 +116,8 @@ class VoinuxGUI:
             def on_status(status: str) -> None:
                 logger.info("Status: %s", status)
                 # Map internal status messages to user-friendly ones
-                if self.window:
-                    if "initialized" in status.lower() or "ready" in status.lower():
-                        self.window.set_status("Listening")
+                if self.window and ("initialized" in status.lower() or "ready" in status.lower()):
+                    self.window.set_status("Listening")
 
             # Start session tracking
             if self.window:

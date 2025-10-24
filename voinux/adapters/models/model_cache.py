@@ -3,6 +3,7 @@
 import asyncio
 import warnings
 from pathlib import Path
+from typing import ClassVar
 
 from faster_whisper.utils import download_model
 
@@ -17,7 +18,7 @@ class ModelCache(IModelManager):
     """Adapter for managing Whisper model downloads and caching."""
 
     # VRAM requirements in MB for different model/compute_type combinations
-    VRAM_REQUIREMENTS = {
+    VRAM_REQUIREMENTS: ClassVar[dict[tuple[str, str], int]] = {
         ("tiny", "int8"): 300,
         ("tiny", "float16"): 500,
         ("tiny", "float32"): 1000,
@@ -113,11 +114,7 @@ class ModelCache(IModelManager):
         if not self.models_dir.exists():
             return []
 
-        models = []
-        for item in self.models_dir.iterdir():
-            if item.is_dir():
-                models.append(item.name)
-
+        models = [item.name for item in self.models_dir.iterdir() if item.is_dir()]
         return sorted(models)
 
     def get_vram_requirements(self, model_name: str, compute_type: str) -> int:
@@ -148,8 +145,4 @@ class ModelCache(IModelManager):
 
         # Check for required files (model.bin, config.json, vocabulary, etc.)
         required_files = ["model.bin", "config.json"]
-        for filename in required_files:
-            if not (model_path / filename).exists():
-                return False
-
-        return True
+        return all((model_path / filename).exists() for filename in required_files)
