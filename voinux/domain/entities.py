@@ -1,11 +1,20 @@
 """Core domain entities for the Voinux voice transcription system."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
+
+
+class SpeechState(Enum):
+    """States for the speech buffer state machine."""
+
+    IDLE = "idle"  # No speech detected, buffer is empty
+    BUFFERING = "buffering"  # Currently buffering speech chunks
+    PROCESSING = "processing"  # Processing buffered audio
 
 
 @dataclass(frozen=True)
@@ -82,6 +91,123 @@ class ModelConfig:
             raise ValueError(f"beam_size must be >= 1, got {self.beam_size}")
 
 
+@dataclass(frozen=True)
+class BufferConfig:
+    """Configuration for speech buffering behavior."""
+
+    silence_threshold_ms: int = 1200  # Wait time after speech before processing
+    max_buffer_duration_ms: int = 30000  # Maximum buffer size (30 seconds)
+    min_utterance_duration_ms: int = 300  # Minimum utterance to process
+
+    def __post_init__(self) -> None:
+        """Validate buffer configuration."""
+        if self.silence_threshold_ms < 0:
+            raise ValueError(f"silence_threshold_ms must be >= 0, got {self.silence_threshold_ms}")
+        if self.max_buffer_duration_ms < 1000:
+            raise ValueError(f"max_buffer_duration_ms must be >= 1000ms, got {self.max_buffer_duration_ms}")
+        if self.min_utterance_duration_ms < 0:
+            raise ValueError(f"min_utterance_duration_ms must be >= 0, got {self.min_utterance_duration_ms}")
+
+
+@dataclass
+class SpeechBuffer:
+    """Manages buffering of audio chunks until utterance is complete."""
+
+    buffer_config: BufferConfig
+    sample_rate: int
+    state: SpeechState = SpeechState.IDLE
+    buffered_chunks: list[AudioChunk] = field(default_factory=list)
+    silence_duration_ms: int = 0
+    total_buffered_duration_ms: int = 0
+    utterance_start_time: Optional[datetime] = None
+
+    def add_chunk(self, chunk: AudioChunk, is_speech: bool) -> None:
+        """Add a chunk to the buffer and update state.
+
+        Args:
+            chunk: Audio chunk to add
+            is_speech: Whether the chunk contains speech
+        """
+        if is_speech:
+            # Reset silence counter when speech is detected
+            self.silence_duration_ms = 0
+
+            # Start buffering if idle
+            if self.state == SpeechState.IDLE:
+                self.state = SpeechState.BUFFERING
+                self.utterance_start_time = chunk.timestamp
+
+            # Add chunk to buffer
+            if self.state == SpeechState.BUFFERING:
+                self.buffered_chunks.append(chunk)
+                self.total_buffered_duration_ms += chunk.duration_ms
+        else:
+            # Increment silence counter if we were buffering
+            if self.state == SpeechState.BUFFERING:
+                self.silence_duration_ms += chunk.duration_ms
+
+    def should_process(self) -> bool:
+        """Check if the buffer should be processed.
+
+        Returns:
+            bool: True if buffer should be processed
+        """
+        # Don't process if idle or empty
+        if self.state != SpeechState.BUFFERING or not self.buffered_chunks:
+            return False
+
+        # Process if silence threshold reached
+        if self.silence_duration_ms >= self.buffer_config.silence_threshold_ms:
+            return True
+
+        # Process if max buffer duration reached (safety limit)
+        if self.total_buffered_duration_ms >= self.buffer_config.max_buffer_duration_ms:
+            return True
+
+        return False
+
+    def should_ignore(self) -> bool:
+        """Check if the buffered utterance should be ignored (too short).
+
+        Returns:
+            bool: True if utterance is too short to process
+        """
+        return self.total_buffered_duration_ms < self.buffer_config.min_utterance_duration_ms
+
+    def get_concatenated_audio(self) -> AudioChunk:
+        """Concatenate all buffered chunks into a single AudioChunk.
+
+        Returns:
+            AudioChunk: Single chunk containing all buffered audio
+
+        Raises:
+            ValueError: If buffer is empty
+        """
+        if not self.buffered_chunks:
+            raise ValueError("Cannot concatenate empty buffer")
+
+        # Concatenate all audio data
+        concatenated_data = np.concatenate([chunk.data for chunk in self.buffered_chunks])
+
+        # Use the timestamp of the first chunk
+        first_chunk = self.buffered_chunks[0]
+
+        return AudioChunk(
+            data=concatenated_data,
+            sample_rate=self.sample_rate,
+            timestamp=first_chunk.timestamp,
+            duration_ms=self.total_buffered_duration_ms,
+        )
+
+    def reset(self) -> None:
+        """Reset the buffer to idle state."""
+        self.state = SpeechState.IDLE
+        self.buffered_chunks.clear()
+        self.silence_duration_ms = 0
+        self.total_buffered_duration_ms = 0
+        self.utterance_start_time = None
+
+
 @dataclass
 class TranscriptionSession:
     """Represents an active transcription session with statistics."""
@@ -94,6 +220,10 @@ class TranscriptionSession:
     total_silence_chunks: int = 0
     total_transcription_time_ms: int = 0
     total_characters_typed: int = 0
+    # Utterance-based statistics
+    total_utterances_processed: int = 0
+    total_utterance_duration_ms: int = 0
+    total_buffer_overflows: int = 0  # Times max buffer was hit
     is_active: bool = True
     ended_at: Optional[datetime] = None
 
@@ -105,6 +235,20 @@ class TranscriptionSession:
             self.total_transcription_time_ms += transcription_time_ms
         else:
             self.total_silence_chunks += 1
+
+    def record_utterance(self, utterance_duration_ms: int, transcription_time_ms: int, was_overflow: bool = False) -> None:
+        """Record processing of a complete utterance.
+
+        Args:
+            utterance_duration_ms: Duration of the utterance in milliseconds
+            transcription_time_ms: Time taken to transcribe
+            was_overflow: Whether this was triggered by buffer overflow
+        """
+        self.total_utterances_processed += 1
+        self.total_utterance_duration_ms += utterance_duration_ms
+        self.total_transcription_time_ms += transcription_time_ms
+        if was_overflow:
+            self.total_buffer_overflows += 1
 
     def record_typing(self, character_count: int) -> None:
         """Record characters typed to output."""
@@ -134,3 +278,10 @@ class TranscriptionSession:
         if self.total_chunks_processed == 0:
             return 0.0
         return (self.total_silence_chunks / self.total_chunks_processed) * 100
+
+    @property
+    def average_utterance_duration_ms(self) -> float:
+        """Calculate average duration of processed utterances."""
+        if self.total_utterances_processed == 0:
+            return 0.0
+        return self.total_utterance_duration_ms / self.total_utterances_processed

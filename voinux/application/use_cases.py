@@ -12,7 +12,7 @@ from voinux.application.factories import (
     create_vad,
 )
 from voinux.config.config import Config
-from voinux.domain.entities import ModelConfig, TranscriptionSession
+from voinux.domain.entities import BufferConfig, ModelConfig, TranscriptionSession
 from voinux.domain.exceptions import InitializationError
 from voinux.domain.services import SessionManager, TranscriptionPipeline
 
@@ -80,6 +80,13 @@ class StartTranscription:
             recognizer = await create_speech_recognizer(self.config)
             keyboard = await create_keyboard_simulator(self.config)
 
+            # Create buffer config
+            buffer_config = BufferConfig(
+                silence_threshold_ms=self.config.buffering.silence_threshold_ms,
+                max_buffer_duration_ms=self.config.buffering.max_buffer_duration_ms,
+                min_utterance_duration_ms=self.config.buffering.min_utterance_duration_ms,
+            )
+
             # Create pipeline
             self.pipeline = TranscriptionPipeline(
                 audio_capture=audio_capture,
@@ -87,6 +94,7 @@ class StartTranscription:
                 recognizer=recognizer,
                 keyboard=keyboard,
                 session=session,
+                buffer_config=buffer_config,
                 vad_enabled=self.config.vad.enabled,
             )
 

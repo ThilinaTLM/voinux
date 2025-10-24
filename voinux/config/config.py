@@ -46,6 +46,15 @@ class KeyboardConfig:
 
 
 @dataclass
+class BufferingConfig:
+    """Configuration for speech buffering."""
+
+    silence_threshold_ms: int = 1200  # Wait time after speech before processing
+    max_buffer_duration_ms: int = 30000  # Maximum buffer size (30 seconds)
+    min_utterance_duration_ms: int = 300  # Minimum utterance duration to process
+
+
+@dataclass
 class SystemConfig:
     """System-level configuration."""
 
@@ -63,6 +72,7 @@ class Config:
     audio: AudioConfig = field(default_factory=AudioConfig)
     vad: VADConfig = field(default_factory=VADConfig)
     keyboard: KeyboardConfig = field(default_factory=KeyboardConfig)
+    buffering: BufferingConfig = field(default_factory=BufferingConfig)
     system: SystemConfig = field(default_factory=SystemConfig)
 
     @classmethod
@@ -130,6 +140,20 @@ class Config:
                 f"typing_delay_ms must be >= 0, got {self.keyboard.typing_delay_ms}"
             )
 
+        # Validate buffering config
+        if self.buffering.silence_threshold_ms < 0:
+            raise ValueError(
+                f"silence_threshold_ms must be >= 0, got {self.buffering.silence_threshold_ms}"
+            )
+        if self.buffering.max_buffer_duration_ms < 1000:
+            raise ValueError(
+                f"max_buffer_duration_ms must be >= 1000ms, got {self.buffering.max_buffer_duration_ms}"
+            )
+        if self.buffering.min_utterance_duration_ms < 0:
+            raise ValueError(
+                f"min_utterance_duration_ms must be >= 0, got {self.buffering.min_utterance_duration_ms}"
+            )
+
         # Validate log level
         valid_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if self.system.log_level.upper() not in valid_log_levels:
@@ -165,6 +189,10 @@ class Config:
             keyboard=KeyboardConfig(**{
                 **vars(self.keyboard),
                 **overrides.get("keyboard", {})
+            }),
+            buffering=BufferingConfig(**{
+                **vars(self.buffering),
+                **overrides.get("buffering", {})
             }),
             system=SystemConfig(**{
                 **vars(self.system),
