@@ -1,9 +1,13 @@
 """WebRTC VAD adapter for voice activation detection."""
 
 import asyncio
+import warnings
 from typing import Optional
 
 import numpy as np
+
+# Suppress pkg_resources deprecation warning from webrtcvad
+warnings.filterwarnings("ignore", category=UserWarning, module="webrtcvad")
 import webrtcvad
 
 from voinux.domain.entities import AudioChunk

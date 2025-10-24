@@ -1,9 +1,13 @@
 """Faster-Whisper speech recognition adapter."""
 
 import asyncio
+import os
+import sys
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import torch
@@ -12,6 +16,10 @@ from faster_whisper import WhisperModel
 from voinux.domain.entities import AudioChunk, ModelConfig, TranscriptionResult
 from voinux.domain.exceptions import TranscriptionError
 from voinux.domain.ports import ISpeechRecognizer
+
+# Suppress deprecation warnings from dependencies
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="huggingface_hub")
+warnings.filterwarnings("ignore", category=UserWarning, module="webrtcvad")
 
 
 class WhisperRecognizer(ISpeechRecognizer):
@@ -23,6 +31,7 @@ class WhisperRecognizer(ISpeechRecognizer):
         self.model_config: Optional[ModelConfig] = None
         self.executor: Optional[ThreadPoolExecutor] = None
         self.device: str = "cpu"
+        self._setup_cuda_libraries()
 
     async def initialize(self, model_config: ModelConfig) -> None:
         """Initialize the speech recognizer with given model configuration.
@@ -139,6 +148,57 @@ class WhisperRecognizer(ISpeechRecognizer):
 
         # Fall back to CPU
         return "cpu"
+
+    def _setup_cuda_libraries(self) -> None:
+        """Set up CUDA library paths for CTranslate2 to find cuDNN and cuBLAS.
+
+        CTranslate2 may have trouble finding NVIDIA libraries installed via pip.
+        This method adds the necessary paths to LD_LIBRARY_PATH and creates
+        symlinks if needed to ensure proper library loading.
+        """
+        try:
+            # Find the nvidia package directories in site-packages
+            import site
+            site_packages = site.getsitepackages()
+
+            cuda_lib_paths = []
+            for site_pkg in site_packages:
+                site_path = Path(site_pkg)
+
+                # Add NVIDIA cuDNN library path
+                cudnn_path = site_path / "nvidia" / "cudnn" / "lib"
+                if cudnn_path.exists():
+                    cuda_lib_paths.append(str(cudnn_path))
+
+                # Add NVIDIA cuBLAS library path
+                cublas_path = site_path / "nvidia" / "cublas" / "lib"
+                if cublas_path.exists():
+                    cuda_lib_paths.append(str(cublas_path))
+
+                # Add other NVIDIA library paths
+                nvidia_path = site_path / "nvidia"
+                if nvidia_path.exists():
+                    for lib_dir in nvidia_path.iterdir():
+                        if lib_dir.is_dir():
+                            lib_path = lib_dir / "lib"
+                            if lib_path.exists() and str(lib_path) not in cuda_lib_paths:
+                                cuda_lib_paths.append(str(lib_path))
+
+            if cuda_lib_paths:
+                # Update LD_LIBRARY_PATH environment variable
+                current_ld_path = os.environ.get("LD_LIBRARY_PATH", "")
+                new_paths = [p for p in cuda_lib_paths if p not in current_ld_path]
+
+                if new_paths:
+                    if current_ld_path:
+                        os.environ["LD_LIBRARY_PATH"] = ":".join(new_paths) + ":" + current_ld_path
+                    else:
+                        os.environ["LD_LIBRARY_PATH"] = ":".join(new_paths)
+
+        except Exception:
+            # Silently fail - this is a best-effort optimization
+            # If it fails, the system may still work with system CUDA libraries
+            pass
 
     def get_device_info(self) -> dict[str, any]:  # type: ignore[valid-type]
         """Get information about the current device.

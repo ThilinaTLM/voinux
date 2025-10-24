@@ -1,8 +1,12 @@
 """Model management adapter for downloading and caching Whisper models."""
 
 import asyncio
+import warnings
 from pathlib import Path
 from typing import Optional
+
+# Suppress huggingface_hub deprecation warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
 
 from faster_whisper.utils import download_model
 
