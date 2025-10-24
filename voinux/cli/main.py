@@ -55,6 +55,8 @@ _setup_cuda_environment()
 
 # Now import the rest
 import asyncio
+import logging
+import logging.handlers
 from pathlib import Path
 from typing import Optional
 
@@ -67,6 +69,49 @@ from voinux.config.loader import ConfigLoader
 console = Console()
 
 
+def setup_logging(log_level: str = "INFO", log_file: Optional[Path] = None) -> None:
+    """Set up logging configuration.
+
+    Args:
+        log_level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        log_file: Optional file path for logging
+    """
+    # Convert log level string to logging constant
+    numeric_level = getattr(logging, log_level.upper(), logging.INFO)
+
+    # Create formatter
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    # Set root logger level
+    root_logger = logging.getLogger()
+    root_logger.setLevel(numeric_level)
+
+    # Remove existing handlers
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    # Add console handler (always enabled)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(numeric_level)
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+
+    # Add file handler if specified
+    if log_file:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_file,
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=5
+        )
+        file_handler.setLevel(numeric_level)
+        file_handler.setFormatter(formatter)
+        root_logger.addHandler(file_handler)
+
+
 @click.group()
 @click.version_option(version="1.0.0", prog_name="voinux")
 @click.option(
@@ -77,8 +122,14 @@ console = Console()
 )
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.option("--quiet", "-q", is_flag=True, help="Suppress output")
+@click.option(
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
+    default=None,
+    help="Set logging level",
+)
 @click.pass_context
-def cli(ctx: click.Context, config_file: Optional[Path], verbose: bool, quiet: bool) -> None:
+def cli(ctx: click.Context, config_file: Optional[Path], verbose: bool, quiet: bool, log_level: Optional[str]) -> None:
     """Voinux - Privacy-focused voice typing for Linux.
 
     Real-time voice-to-text transcription using local GPU-accelerated Whisper models.
@@ -91,6 +142,23 @@ def cli(ctx: click.Context, config_file: Optional[Path], verbose: bool, quiet: b
     ctx.obj["verbose"] = verbose
     ctx.obj["quiet"] = quiet
     ctx.obj["console"] = console
+    ctx.obj["log_level"] = log_level
+
+    # Set up logging
+    # If --verbose is used, force DEBUG level
+    # If --quiet is used, force ERROR level
+    # If --log-level is specified, use that
+    # Otherwise use default INFO
+    if verbose:
+        effective_log_level = "DEBUG"
+    elif quiet:
+        effective_log_level = "ERROR"
+    elif log_level:
+        effective_log_level = log_level
+    else:
+        effective_log_level = "INFO"
+
+    setup_logging(log_level=effective_log_level)
 
 
 def run_async(coro):

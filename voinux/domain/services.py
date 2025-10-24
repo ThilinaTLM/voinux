@@ -1,6 +1,7 @@
 """Core domain services for orchestrating voice transcription."""
 
 import asyncio
+import logging
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -19,6 +20,8 @@ from voinux.domain.ports import (
     ISpeechRecognizer,
     IVoiceActivationDetector,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TranscriptionPipeline:
