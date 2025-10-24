@@ -107,6 +107,9 @@ ignore = [
     "PLC0415",   # import outside top-level (often intentional for lazy loading)
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"voinux/gui/**/*.py" = ["N802"]  # Qt methods must use camelCase
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
