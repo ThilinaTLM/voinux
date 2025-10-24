@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import signal
 import sys
 from typing import Optional
 
@@ -35,6 +36,9 @@ class VoinuxGUI:
         self.use_case: Optional[StartTranscription] = None
         self.session: Optional[TranscriptionSession] = None
 
+        # Track the transcription task for proper cancellation
+        self.transcription_task: Optional[asyncio.Task] = None
+
         # Stats update timer
         self.stats_timer: Optional[QTimer] = None
 
@@ -48,6 +52,17 @@ class VoinuxGUI:
         # Set up asyncio event loop with Qt integration
         self.loop = QEventLoop(self.app)
         asyncio.set_event_loop(self.loop)
+
+        # Install signal handler for Ctrl+C (SIGINT)
+        # Note: We use Python's signal.signal() instead of loop.add_signal_handler()
+        # because QEventLoop doesn't support add_signal_handler() properly
+        def signal_handler(signum, frame):
+            logger.info("Received signal %s, initiating graceful shutdown", signum)
+            self._on_quit_requested()
+
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        logger.debug("Signal handlers installed for SIGINT and SIGTERM")
 
         # Create GUI components
         self.window = FloatingPanel()
@@ -63,8 +78,8 @@ class VoinuxGUI:
         self.window.show()
         self.tray.show()
 
-        # Start transcription
-        self.loop.create_task(self._start_transcription())
+        # Start transcription and track the task
+        self.transcription_task = self.loop.create_task(self._start_transcription())
 
         # Set up stats update timer
         self.stats_timer = QTimer()
@@ -76,8 +91,18 @@ class VoinuxGUI:
             with self.loop:
                 self.loop.run_forever()
         finally:
-            # Cleanup
-            if self.use_case:
+            # Cancel the transcription task if it's still running
+            if self.transcription_task and not self.transcription_task.done():
+                logger.debug("Cancelling transcription task")
+                self.transcription_task.cancel()
+                try:
+                    self.loop.run_until_complete(self.transcription_task)
+                except asyncio.CancelledError:
+                    logger.debug("Transcription task cancelled successfully")
+
+            # Cleanup - only stop if still running (avoid double-stop)
+            if self.use_case and self.use_case.pipeline and self.use_case.pipeline.is_running:
+                logger.debug("Performing final cleanup on event loop exit")
                 self.loop.run_until_complete(self.use_case.stop())
 
     async def _start_transcription(self) -> None:
@@ -103,9 +128,11 @@ class VoinuxGUI:
             if self.window:
                 self.window.start_session()
 
-            # Execute transcription
+            # Execute transcription (disable signal handlers - we handle them in GUI)
             self.session = await self.use_case.execute(
-                on_status_change=on_status, on_audio_chunk=on_audio_chunk
+                on_status_change=on_status,
+                on_audio_chunk=on_audio_chunk,
+                install_signal_handlers=False,
             )
 
             # Show completion notification
@@ -142,6 +169,11 @@ class VoinuxGUI:
     def _on_stop_requested(self) -> None:
         """Handle stop request from GUI."""
         logger.info("Stop requested from GUI")
+
+        # Provide immediate UI feedback
+        if self.window:
+            self.window.show_stopping()
+
         if self.use_case:
             # Stop transcription asynchronously
             self.loop.create_task(self._stop_transcription())
@@ -184,12 +216,15 @@ class VoinuxGUI:
     async def _cleanup_and_quit(self) -> None:
         """Clean up and quit the application."""
         try:
+            logger.info("Starting cleanup before quit")
             if self.use_case:
                 await self.use_case.stop()
+                logger.info("Transcription stopped successfully")
         except Exception as e:
             logger.error("Error during cleanup: %s", e, exc_info=True)
         finally:
             if self.app:
+                logger.info("Quitting application")
                 self.app.quit()
 
 

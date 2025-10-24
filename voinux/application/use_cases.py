@@ -37,12 +37,15 @@ class StartTranscription:
         self,
         on_status_change: Optional[Callable[[str], None]] = None,
         on_audio_chunk: Optional[Callable[[any, bool], None]] = None,  # type: ignore[valid-type]
+        install_signal_handlers: bool = True,
     ) -> TranscriptionSession:
         """Execute the transcription use case.
 
         Args:
             on_status_change: Callback for status updates
             on_audio_chunk: Optional callback for each audio chunk (chunk, is_speech)
+            install_signal_handlers: Whether to install SIGINT/SIGTERM handlers (default: True)
+                                    Set to False in GUI mode where Qt handles signals
 
         Returns:
             TranscriptionSession: The completed session
@@ -112,13 +115,15 @@ class StartTranscription:
                 on_audio_chunk=on_audio_chunk,
             )
 
-            # Set up signal handlers for graceful shutdown
-            loop = asyncio.get_event_loop()
-            for sig in (signal.SIGINT, signal.SIGTERM):
-                loop.add_signal_handler(
-                    sig,
-                    lambda: asyncio.create_task(self.stop()),
-                )
+            # Set up signal handlers for graceful shutdown (CLI mode only)
+            if install_signal_handlers:
+                loop = asyncio.get_event_loop()
+                for sig in (signal.SIGINT, signal.SIGTERM):
+                    loop.add_signal_handler(
+                        sig,
+                        lambda: asyncio.create_task(self.stop()),
+                    )
+                logger.debug("Signal handlers installed for SIGINT and SIGTERM")
 
             # Start transcription
             if on_status_change:

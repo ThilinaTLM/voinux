@@ -84,6 +84,12 @@ class SoundCardAudioCapture(IAudioCapture):
         """Stop audio capture and release resources."""
         logger.info("Stopping audio capture")
         self._running = False
+
+        # Give time for the recording loop to exit cleanly
+        # This prevents PulseAudio mutex lock errors
+        if self.microphone is not None:
+            await asyncio.sleep(0.1)
+
         self.microphone = None
         self._queue = None
         logger.debug("Audio capture stopped")

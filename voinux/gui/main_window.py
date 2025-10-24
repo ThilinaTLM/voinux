@@ -225,3 +225,9 @@ class FloatingPanel(QWidget):
         color = "#D32F2F" if is_error else "#76AF50"
         self.status_label.setText(status)
         self.status_label.setStyleSheet(f"color: {color}; background: transparent;")
+
+    def show_stopping(self) -> None:
+        """Show UI feedback that stopping is in progress."""
+        self.stop_button.setEnabled(False)
+        self.stop_button.setText("Stopping...")
+        self.set_status("⏹ Stopping transcription...")
