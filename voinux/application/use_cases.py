@@ -1,6 +1,7 @@
 """Application use cases for Voinux."""
 
 import asyncio
+import logging
 import signal
 from typing import Callable, Optional
 
@@ -15,6 +16,8 @@ from voinux.config.config import Config
 from voinux.domain.entities import BufferConfig, ModelConfig, TranscriptionSession
 from voinux.domain.exceptions import InitializationError
 from voinux.domain.services import SessionManager, TranscriptionPipeline
+
+logger = logging.getLogger(__name__)
 
 
 class StartTranscription:
@@ -46,6 +49,8 @@ class StartTranscription:
             InitializationError: If initialization fails
         """
         try:
+            logger.info("Starting transcription use case")
+
             # Create session
             model_config = ModelConfig(
                 model_name=self.config.faster_whisper.model,
@@ -63,22 +68,28 @@ class StartTranscription:
             if on_status_change:
                 on_status_change("Checking model...")
 
+            logger.info("Checking for model: %s", self.config.faster_whisper.model)
             model_manager = create_model_manager(self.config)
             model_path = await model_manager.get_model_path(self.config.faster_whisper.model)
 
             if model_path is None:
+                logger.info("Model not found, downloading: %s", self.config.faster_whisper.model)
                 if on_status_change:
                     on_status_change(f"Downloading model: {self.config.faster_whisper.model}...")
                 await model_manager.download_model(self.config.faster_whisper.model)
+            else:
+                logger.info("Model found at: %s", model_path)
 
             # Create adapters
             if on_status_change:
                 on_status_change("Initializing components...")
 
+            logger.info("Initializing components")
             audio_capture = await create_audio_capture(self.config)
             vad = await create_vad(self.config)
             recognizer = await create_speech_recognizer(self.config)
             keyboard = await create_keyboard_simulator(self.config)
+            logger.info("All components initialized successfully")
 
             # Create buffer config
             buffer_config = BufferConfig(
@@ -110,19 +121,24 @@ class StartTranscription:
             if on_status_change:
                 on_status_change("Listening...")
 
+            logger.info("Starting transcription pipeline")
             await self.pipeline.start()
 
             # Get completed session
             completed_session = self.session_manager.end_current_session()
+            logger.info("Transcription use case completed")
             return completed_session if completed_session else session
 
         except Exception as e:
+            logger.error("Failed to start transcription: %s", e, exc_info=True)
             raise InitializationError(f"Failed to start transcription: {e}") from e
 
     async def stop(self) -> None:
         """Stop the transcription pipeline."""
         if self.pipeline:
+            logger.info("Stopping transcription use case")
             await self.pipeline.stop()
+            logger.info("Transcription use case stopped")
 
 
 class TestAudio:

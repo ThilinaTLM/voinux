@@ -1,7 +1,11 @@
 """Stdout keyboard adapter for testing (prints instead of typing)."""
 
+import logging
+
 from voinux.domain.exceptions import KeyboardSimulationError
 from voinux.domain.ports import IKeyboardSimulator
+
+logger = logging.getLogger(__name__)
 
 
 class StdoutKeyboard(IKeyboardSimulator):
@@ -25,6 +29,7 @@ class StdoutKeyboard(IKeyboardSimulator):
             KeyboardSimulationError: If printing fails
         """
         if not text.strip():
+            logger.debug("Stdout keyboard: Skipping empty text")
             return
 
         try:
@@ -32,9 +37,11 @@ class StdoutKeyboard(IKeyboardSimulator):
             if self.add_space_after and not text.endswith(" "):
                 text = text + " "
 
+            logger.debug("Stdout keyboard: Printing text (length=%d)", len(text))
             print(text, end="", flush=True)
 
         except Exception as e:
+            logger.error("Failed to print text: %s", e, exc_info=True)
             raise KeyboardSimulationError(f"Failed to print text: {e}") from e
 
     async def is_available(self) -> bool:

@@ -1,6 +1,7 @@
 """SoundCard audio capture adapter for real-time microphone input."""
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Optional
@@ -11,6 +12,8 @@ import soundcard as sc
 from voinux.domain.entities import AudioChunk
 from voinux.domain.exceptions import AudioCaptureError
 from voinux.domain.ports import IAudioCapture
+
+logger = logging.getLogger(__name__)
 
 
 class SoundCardAudioCapture(IAudioCapture):
@@ -53,21 +56,37 @@ class SoundCardAudioCapture(IAudioCapture):
                         f"Available devices: {len(mics)}"
                     )
                 self.microphone = mics[self.device_index]
+                logger.info(
+                    "Starting audio capture (device_index=%d, device=%s, sample_rate=%d, chunk_size=%d)",
+                    self.device_index,
+                    self.microphone.name,
+                    self.sample_rate,
+                    self.chunk_size,
+                )
             else:
                 self.microphone = sc.default_microphone()
+                logger.info(
+                    "Starting audio capture (default_device=%s, sample_rate=%d, chunk_size=%d)",
+                    self.microphone.name,
+                    self.sample_rate,
+                    self.chunk_size,
+                )
 
             # Create queue for audio chunks
             self._queue = asyncio.Queue(maxsize=10)
             self._running = True
 
         except Exception as e:
+            logger.error("Failed to start audio capture: %s", e, exc_info=True)
             raise AudioCaptureError(f"Failed to start audio capture: {e}") from e
 
     async def stop(self) -> None:
         """Stop audio capture and release resources."""
+        logger.info("Stopping audio capture")
         self._running = False
         self.microphone = None
         self._queue = None
+        logger.debug("Audio capture stopped")
 
     async def stream(self) -> AsyncIterator[AudioChunk]:
         """Stream audio chunks as they are captured.
@@ -84,6 +103,9 @@ class SoundCardAudioCapture(IAudioCapture):
         try:
             # Start recording in background thread
             loop = asyncio.get_event_loop()
+
+            logger.debug("Starting audio stream recording loop")
+            chunk_count = 0
 
             with self.microphone.recorder(
                 samplerate=self.sample_rate,
@@ -112,8 +134,19 @@ class SoundCardAudioCapture(IAudioCapture):
                         duration_ms=self.chunk_duration_ms,
                     )
 
+                    chunk_count += 1
+                    logger.debug(
+                        "Audio chunk captured (chunk_count=%d, samples=%d, duration=%dms)",
+                        chunk_count,
+                        len(data),
+                        self.chunk_duration_ms,
+                    )
+
                     yield chunk
+
+            logger.debug("Audio stream recording loop ended (total_chunks=%d)", chunk_count)
 
         except Exception as e:
             self._running = False
+            logger.error("Audio streaming failed: %s", e, exc_info=True)
             raise AudioCaptureError(f"Audio streaming failed: {e}") from e

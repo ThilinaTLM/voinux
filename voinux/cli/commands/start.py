@@ -1,6 +1,7 @@
 """Start command for beginning voice transcription."""
 
 import asyncio
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -12,6 +13,8 @@ from rich.table import Table
 
 from voinux.application.use_cases import StartTranscription
 from voinux.config.loader import ConfigLoader
+
+logger = logging.getLogger(__name__)
 
 
 @click.command()
@@ -36,6 +39,8 @@ def start(
     console: Console = ctx.obj["console"]
 
     async def _start() -> None:
+        logger.info("Start command invoked")
+
         # Load configuration
         config_file = ctx.obj.get("config_file")
         loader = ConfigLoader(config_file=config_file)
@@ -51,6 +56,7 @@ def start(
         if no_vad:
             cli_overrides.setdefault("vad", {})["enabled"] = False
 
+        logger.debug("Loading configuration with CLI overrides: %s", cli_overrides)
         config = await loader.load(cli_overrides=cli_overrides)
 
         # Display configuration
@@ -70,6 +76,14 @@ def start(
         console.print(config_table)
         console.print()
 
+        logger.info(
+            "Configuration loaded (model=%s, device=%s, vad=%s, language=%s)",
+            config.faster_whisper.model,
+            config.faster_whisper.device,
+            config.vad.enabled,
+            config.faster_whisper.language or "auto",
+        )
+
         # Create use case
         use_case = StartTranscription(config)
 
@@ -79,6 +93,7 @@ def start(
 
         try:
             # Start transcription
+            logger.info("Executing transcription use case")
             session = await use_case.execute(on_status_change=on_status)
 
             # Display session statistics
@@ -106,10 +121,20 @@ def start(
 
             console.print(stats_table)
 
+            logger.info(
+                "Session completed (duration=%.1fs, chunks=%d, utterances=%d, characters=%d)",
+                session.duration_seconds,
+                session.total_chunks_processed,
+                session.total_utterances_processed,
+                session.total_characters_typed,
+            )
+
         except KeyboardInterrupt:
+            logger.info("Keyboard interrupt received")
             console.print("\n[yellow]Stopping transcription...[/yellow]")
             await use_case.stop()
         except Exception as e:
+            logger.error("Error during transcription: %s", e, exc_info=True)
             console.print(f"\n[red]Error: {e}[/red]")
             raise click.Abort()
 

@@ -1,6 +1,7 @@
 """Faster-Whisper speech recognition adapter."""
 
 import asyncio
+import logging
 import os
 import sys
 import time
@@ -20,6 +21,8 @@ from voinux.domain.ports import ISpeechRecognizer
 # Suppress deprecation warnings from dependencies
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="huggingface_hub")
 warnings.filterwarnings("ignore", category=UserWarning, module="webrtcvad")
+
+logger = logging.getLogger(__name__)
 
 
 class WhisperRecognizer(ISpeechRecognizer):
@@ -43,22 +46,33 @@ class WhisperRecognizer(ISpeechRecognizer):
             TranscriptionError: If initialization fails
         """
         try:
+            logger.info(
+                "Initializing Whisper recognizer (model=%s, device=%s, compute_type=%s, beam_size=%d)",
+                model_config.model_name,
+                model_config.device,
+                model_config.compute_type,
+                model_config.beam_size,
+            )
+
             self.model_config = model_config
 
             # Detect device if set to auto
             device = model_config.device
             if device == "auto":
                 device = self._detect_device()
+                logger.info("Auto-detected device: %s", device)
 
             self.device = device
 
             # Determine model path
             model_path = model_config.model_path or model_config.model_name
+            logger.debug("Model path: %s", model_path)
 
             # Create thread pool executor (single thread to avoid memory duplication)
             self.executor = ThreadPoolExecutor(max_workers=1)
 
             # Initialize model in thread pool
+            logger.info("Loading Whisper model (this may take a moment)...")
             loop = asyncio.get_event_loop()
             self.model = await loop.run_in_executor(
                 self.executor,
@@ -69,7 +83,14 @@ class WhisperRecognizer(ISpeechRecognizer):
                 ),
             )
 
+            logger.info(
+                "Whisper model loaded successfully (device=%s, compute_type=%s)",
+                device,
+                model_config.compute_type,
+            )
+
         except Exception as e:
+            logger.error("Failed to initialize Whisper model: %s", e, exc_info=True)
             raise TranscriptionError(f"Failed to initialize Whisper model: {e}") from e
 
     async def transcribe(self, audio_chunk: AudioChunk) -> TranscriptionResult:
@@ -88,6 +109,12 @@ class WhisperRecognizer(ISpeechRecognizer):
             raise TranscriptionError("Model not initialized. Call initialize() first.")
 
         try:
+            logger.debug(
+                "Starting Whisper transcription (audio_samples=%d, duration=%dms)",
+                len(audio_chunk.data),
+                audio_chunk.duration_ms,
+            )
+
             start_time = time.time()
 
             # Run transcription in thread pool
@@ -108,26 +135,44 @@ class WhisperRecognizer(ISpeechRecognizer):
             # Calculate processing time
             processing_time_ms = int((time.time() - start_time) * 1000)
 
+            # Get language and confidence
+            language = info.language if hasattr(info, "language") else None
+            confidence = info.language_probability if hasattr(info, "language_probability") else 0.0
+
+            logger.debug(
+                "Whisper transcription completed (text_length=%d, language=%s, "
+                "confidence=%.2f, processing_time=%dms)",
+                len(text.strip()),
+                language or "unknown",
+                confidence,
+                processing_time_ms,
+            )
+
             # Create result
             return TranscriptionResult(
                 text=text.strip(),
-                language=info.language if hasattr(info, "language") else None,
-                confidence=info.language_probability if hasattr(info, "language_probability") else 0.0,
+                language=language,
+                confidence=confidence,
                 processing_time_ms=processing_time_ms,
                 timestamp=datetime.now(),
             )
 
         except Exception as e:
+            logger.error("Whisper transcription failed: %s", e, exc_info=True)
             raise TranscriptionError(f"Transcription failed: {e}") from e
 
     async def shutdown(self) -> None:
         """Shut down the recognizer and release resources."""
+        logger.info("Shutting down Whisper recognizer")
+
         if self.executor:
             self.executor.shutdown(wait=True)
             self.executor = None
 
         self.model = None
         self.model_config = None
+
+        logger.debug("Whisper recognizer shutdown complete")
 
     def _detect_device(self) -> str:
         """Detect the best available device (CUDA, ROCm, or CPU).

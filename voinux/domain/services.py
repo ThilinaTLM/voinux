@@ -72,6 +72,15 @@ class TranscriptionPipeline:
         if self._running:
             raise TranscriptionError("Pipeline is already running")
 
+        logger.info(
+            "Starting transcription pipeline (session_id=%s, vad_enabled=%s, "
+            "silence_threshold=%dms, max_buffer=%dms)",
+            self.session.session_id,
+            self.vad_enabled,
+            self.buffer_config.silence_threshold_ms,
+            self.buffer_config.max_buffer_duration_ms,
+        )
+
         self._running = True
         self._stop_event = asyncio.Event()
 
@@ -80,16 +89,20 @@ class TranscriptionPipeline:
 
         try:
             await self.audio_capture.start()
+            logger.info("Audio capture started, beginning pipeline processing")
             await self._run_pipeline()
         except Exception as e:
             self._running = False
             self.session.end()
+            logger.error("Pipeline failed: %s", e, exc_info=True)
             raise TranscriptionError(f"Pipeline failed: {e}") from e
 
     async def stop(self) -> None:
         """Stop the transcription pipeline gracefully."""
         if not self._running:
             return
+
+        logger.info("Stopping transcription pipeline (session_id=%s)", self.session.session_id)
 
         self._running = False
         if self._stop_event:
@@ -99,6 +112,8 @@ class TranscriptionPipeline:
         await self.recognizer.shutdown()
         await self.vad.shutdown()
         self.session.end()
+
+        logger.info("Transcription pipeline stopped")
 
     async def _run_pipeline(self) -> None:
         """Main pipeline loop that processes audio chunks."""
@@ -123,11 +138,28 @@ class TranscriptionPipeline:
                 buffer_config=self.buffer_config,
                 sample_rate=audio_chunk.sample_rate,
             )
+            logger.debug(
+                "Initialized speech buffer (sample_rate=%d, chunk_duration=%dms)",
+                audio_chunk.sample_rate,
+                audio_chunk.duration_ms,
+            )
 
         # Check for speech using VAD
         is_speech = True
         if self.vad_enabled:
             is_speech = await self.vad.is_speech(audio_chunk)
+            logger.debug(
+                "Audio chunk processed (duration=%dms, is_speech=%s, chunks_processed=%d)",
+                audio_chunk.duration_ms,
+                is_speech,
+                self.session.total_chunks_processed + 1,
+            )
+        else:
+            logger.debug(
+                "Audio chunk received (duration=%dms, chunks_processed=%d, vad_disabled)",
+                audio_chunk.duration_ms,
+                self.session.total_chunks_processed + 1,
+            )
 
         # Record chunk in session statistics
         self.session.record_chunk(is_speech=is_speech)
@@ -146,6 +178,11 @@ class TranscriptionPipeline:
 
         # Check if utterance is too short to process
         if self._speech_buffer.should_ignore():
+            logger.debug(
+                "Ignoring utterance (too short: %dms < %dms minimum)",
+                self._speech_buffer.total_buffered_duration_ms,
+                self._speech_buffer.buffer_config.min_utterance_duration_ms,
+            )
             self._speech_buffer.reset()
             return
 
@@ -160,11 +197,34 @@ class TranscriptionPipeline:
                 >= self._speech_buffer.buffer_config.max_buffer_duration_ms
             )
 
+            if was_overflow:
+                logger.warning(
+                    "Buffer overflow detected! Processing utterance (duration=%dms >= max=%dms)",
+                    utterance_duration_ms,
+                    self._speech_buffer.buffer_config.max_buffer_duration_ms,
+                )
+            else:
+                logger.info(
+                    "Processing buffered utterance (duration=%dms, chunks=%d)",
+                    utterance_duration_ms,
+                    len(self._speech_buffer.buffered_chunks),
+                )
+
             # Reset buffer before transcription (so we can start buffering next utterance)
             self._speech_buffer.reset()
 
             # Transcribe the complete utterance
+            logger.info("Starting transcription...")
             result = await self.recognizer.transcribe(utterance_audio)
+
+            logger.info(
+                "Transcription complete (text='%s', language=%s, confidence=%.2f, "
+                "processing_time=%dms)",
+                result.text.strip(),
+                result.language or "unknown",
+                result.confidence,
+                result.processing_time_ms,
+            )
 
             # Record utterance statistics
             self.session.record_utterance(
@@ -175,13 +235,17 @@ class TranscriptionPipeline:
 
             # Type the transcribed text
             if result.text.strip():
+                logger.debug("Typing transcribed text (%d characters)", len(result.text))
                 await self.keyboard.type_text(result.text)
                 self.session.record_typing(len(result.text))
+            else:
+                logger.debug("Transcription result was empty, skipping typing")
 
         except Exception as e:
             # Reset buffer on error to avoid stuck state
             if self._speech_buffer:
                 self._speech_buffer.reset()
+            logger.error("Failed to process utterance: %s", e, exc_info=True)
             raise TranscriptionError(f"Failed to process utterance: {e}") from e
 
     @property
@@ -219,6 +283,14 @@ class SessionManager:
             model_config=model_config,
         )
 
+        logger.info(
+            "Created transcription session (session_id=%s, model=%s, device=%s, language=%s)",
+            session_id,
+            model_config.model_name,
+            model_config.device,
+            model_config.language or "auto",
+        )
+
         self._current_session = session
         return session
 
@@ -238,6 +310,15 @@ class SessionManager:
         """
         if self._current_session:
             self._current_session.end()
+            logger.info(
+                "Ended transcription session (session_id=%s, duration=%.1fs, "
+                "chunks=%d, utterances=%d, characters=%d)",
+                self._current_session.session_id,
+                self._current_session.duration_seconds,
+                self._current_session.total_chunks_processed,
+                self._current_session.total_utterances_processed,
+                self._current_session.total_characters_typed,
+            )
 
         ended_session = self._current_session
         self._current_session = None

@@ -1,6 +1,7 @@
 """WebRTC VAD adapter for voice activation detection."""
 
 import asyncio
+import logging
 import warnings
 from typing import Optional
 
@@ -13,6 +14,8 @@ import webrtcvad
 from voinux.domain.entities import AudioChunk
 from voinux.domain.exceptions import VADError
 from voinux.domain.ports import IVoiceActivationDetector
+
+logger = logging.getLogger(__name__)
 
 
 class WebRTCVAD(IVoiceActivationDetector):
@@ -45,10 +48,23 @@ class WebRTCVAD(IVoiceActivationDetector):
             # Map threshold to WebRTC VAD aggressiveness (0-3)
             self.aggressiveness = self._threshold_to_aggressiveness(threshold)
 
+            logger.info(
+                "Initializing WebRTC VAD (threshold=%.2f, aggressiveness=%d, requested_sample_rate=%d)",
+                threshold,
+                self.aggressiveness,
+                sample_rate,
+            )
+
             # Validate sample rate
             if sample_rate not in self.SUPPORTED_SAMPLE_RATES:
                 # Find nearest supported sample rate
+                original_rate = sample_rate
                 sample_rate = min(self.SUPPORTED_SAMPLE_RATES, key=lambda x: abs(x - sample_rate))
+                logger.warning(
+                    "Sample rate %d not supported by WebRTC VAD, using nearest supported rate: %d",
+                    original_rate,
+                    sample_rate,
+                )
 
             self.sample_rate = sample_rate
 
@@ -59,7 +75,15 @@ class WebRTCVAD(IVoiceActivationDetector):
             # Create VAD instance
             self.vad = webrtcvad.Vad(mode=self.aggressiveness)
 
+            logger.info(
+                "WebRTC VAD initialized (sample_rate=%d, frame_size=%d, frame_duration=%dms)",
+                self.sample_rate,
+                self.frame_size,
+                self.FRAME_DURATION_MS,
+            )
+
         except Exception as e:
+            logger.error("Failed to initialize WebRTC VAD: %s", e, exc_info=True)
             raise VADError(f"Failed to initialize WebRTC VAD: {e}") from e
 
     async def is_speech(self, audio_chunk: AudioChunk) -> bool:
@@ -108,17 +132,31 @@ class WebRTCVAD(IVoiceActivationDetector):
 
             # Consider speech if majority of frames contain speech
             if total_frames == 0:
+                logger.debug("VAD: No frames to process")
                 return False
 
             speech_ratio = speech_frames / total_frames
-            return speech_ratio > 0.5
+            is_speech = speech_ratio > 0.5
+
+            logger.debug(
+                "VAD analysis (speech_frames=%d/%d, ratio=%.2f, is_speech=%s)",
+                speech_frames,
+                total_frames,
+                speech_ratio,
+                is_speech,
+            )
+
+            return is_speech
 
         except Exception as e:
+            logger.error("Failed to detect speech: %s", e, exc_info=True)
             raise VADError(f"Failed to detect speech: {e}") from e
 
     async def shutdown(self) -> None:
         """Shut down the VAD and release resources."""
+        logger.info("Shutting down WebRTC VAD")
         self.vad = None
+        logger.debug("WebRTC VAD shutdown complete")
 
     def _threshold_to_aggressiveness(self, threshold: float) -> int:
         """Map threshold (0.0-1.0) to WebRTC VAD aggressiveness (0-3).

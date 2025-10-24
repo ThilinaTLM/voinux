@@ -1,10 +1,13 @@
 """YDotool keyboard simulation adapter for Wayland."""
 
 import asyncio
+import logging
 from typing import Optional
 
 from voinux.domain.exceptions import KeyboardSimulationError
 from voinux.domain.ports import IKeyboardSimulator
+
+logger = logging.getLogger(__name__)
 
 
 class YDotoolKeyboard(IKeyboardSimulator):
@@ -30,12 +33,19 @@ class YDotoolKeyboard(IKeyboardSimulator):
             KeyboardSimulationError: If typing fails
         """
         if not text.strip():
+            logger.debug("YDotool keyboard: Skipping empty text")
             return
 
         try:
             # Add space if configured
             if self.add_space_after and not text.endswith(" "):
                 text = text + " "
+
+            logger.debug(
+                "YDotool keyboard: Typing text (length=%d, delay=%dms)",
+                len(text),
+                self.typing_delay_ms,
+            )
 
             # Build ydotool command
             cmd = ["ydotool", "type"]
@@ -59,6 +69,7 @@ class YDotoolKeyboard(IKeyboardSimulator):
 
                 # Check for permission errors
                 if "permission denied" in error_msg.lower() or "uinput" in error_msg.lower():
+                    logger.error("YDotool permission error: %s", error_msg)
                     raise KeyboardSimulationError(
                         "ydotool requires uinput permissions. "
                         "Run: sudo usermod -aG input $USER && "
@@ -66,13 +77,18 @@ class YDotoolKeyboard(IKeyboardSimulator):
                         "sudo tee /etc/udev/rules.d/80-uinput.rules"
                     )
 
+                logger.error("YDotool command failed: %s", error_msg)
                 raise KeyboardSimulationError(f"ydotool command failed: {error_msg}")
 
+            logger.debug("YDotool keyboard: Text typed successfully")
+
         except FileNotFoundError:
+            logger.error("ydotool not found on system")
             raise KeyboardSimulationError(
                 "ydotool not found. Please install it: sudo apt install ydotool"
             )
         except Exception as e:
+            logger.error("Failed to type text: %s", e, exc_info=True)
             raise KeyboardSimulationError(f"Failed to type text: {e}") from e
 
     async def is_available(self) -> bool:

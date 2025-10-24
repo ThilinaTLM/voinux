@@ -1,12 +1,15 @@
 """XDotool keyboard simulation adapter for X11."""
 
 import asyncio
+import logging
 import shlex
 import subprocess
 from typing import Optional
 
 from voinux.domain.exceptions import KeyboardSimulationError
 from voinux.domain.ports import IKeyboardSimulator
+
+logger = logging.getLogger(__name__)
 
 
 class XDotoolKeyboard(IKeyboardSimulator):
@@ -32,12 +35,19 @@ class XDotoolKeyboard(IKeyboardSimulator):
             KeyboardSimulationError: If typing fails
         """
         if not text.strip():
+            logger.debug("XDotool keyboard: Skipping empty text")
             return
 
         try:
             # Add space if configured
             if self.add_space_after and not text.endswith(" "):
                 text = text + " "
+
+            logger.debug(
+                "XDotool keyboard: Typing text (length=%d, delay=%dms)",
+                len(text),
+                self.typing_delay_ms,
+            )
 
             # Build xdotool command
             # Use type command with delay option
@@ -59,15 +69,20 @@ class XDotoolKeyboard(IKeyboardSimulator):
 
             if process.returncode != 0:
                 error_msg = stderr.decode().strip()
+                logger.error("XDotool command failed: %s", error_msg)
                 raise KeyboardSimulationError(
                     f"xdotool command failed: {error_msg}"
                 )
 
+            logger.debug("XDotool keyboard: Text typed successfully")
+
         except FileNotFoundError:
+            logger.error("xdotool not found on system")
             raise KeyboardSimulationError(
                 "xdotool not found. Please install it: sudo apt install xdotool"
             )
         except Exception as e:
+            logger.error("Failed to type text: %s", e, exc_info=True)
             raise KeyboardSimulationError(f"Failed to type text: {e}") from e
 
     async def is_available(self) -> bool:
