@@ -56,13 +56,13 @@ def _setup_cuda_environment() -> None:
 _setup_cuda_environment()
 
 # Now import the rest
-import asyncio
-import logging
-import logging.handlers
-from pathlib import Path
+import asyncio  # noqa: E402
+import logging  # noqa: E402
+import logging.handlers  # noqa: E402
+from pathlib import Path  # noqa: E402
 
-import click
-from rich.console import Console
+import click  # noqa: E402
+from rich.console import Console  # noqa: E402
 
 # Create console for rich output
 console = Console()
@@ -171,10 +171,10 @@ def run_async(coro):
 
 
 # Import and register commands
-from voinux.cli.commands.config import config_group
-from voinux.cli.commands.model import model_group
-from voinux.cli.commands.start import start
-from voinux.cli.commands.test import test_audio, test_gpu, test_keyboard
+from voinux.cli.commands.config import config_group  # noqa: E402
+from voinux.cli.commands.model import model_group  # noqa: E402
+from voinux.cli.commands.start import start  # noqa: E402
+from voinux.cli.commands.test import test_audio, test_gpu, test_keyboard  # noqa: E402
 
 cli.add_command(start)
 cli.add_command(config_group)

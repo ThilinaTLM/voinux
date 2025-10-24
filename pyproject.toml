@@ -99,7 +99,12 @@ select = [
 ignore = [
     "E501",      # line too long (handled by formatter)
     "TRY003",    # avoid specifying long messages outside exception class
+    "TRY301",    # abstract raise to inner function (too verbose)
     "PLR0913",   # too many arguments
+    "PLR0915",   # too many statements (complexity, requires refactoring)
+    "PLR0912",   # too many branches (complexity, requires refactoring)
+    "PLR2004",   # magic value comparison (style preference)
+    "PLC0415",   # import outside top-level (often intentional for lazy loading)
 ]
 
 [tool.ruff.format]

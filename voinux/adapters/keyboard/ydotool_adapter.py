@@ -104,6 +104,7 @@ class YDotoolKeyboard(IKeyboardSimulator):
                 stderr=asyncio.subprocess.PIPE,
             )
             await process.communicate()
-            return process.returncode == 0
         except Exception:
             return False
+        else:
+            return process.returncode == 0

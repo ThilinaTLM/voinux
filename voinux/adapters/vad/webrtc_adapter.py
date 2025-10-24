@@ -8,11 +8,11 @@ import numpy as np
 
 # Suppress pkg_resources deprecation warning from webrtcvad
 warnings.filterwarnings("ignore", category=UserWarning, module="webrtcvad")
-import webrtcvad
+import webrtcvad  # noqa: E402
 
-from voinux.domain.entities import AudioChunk
-from voinux.domain.exceptions import VADError
-from voinux.domain.ports import IVoiceActivationDetector
+from voinux.domain.entities import AudioChunk  # noqa: E402
+from voinux.domain.exceptions import VADError  # noqa: E402
+from voinux.domain.ports import IVoiceActivationDetector  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
