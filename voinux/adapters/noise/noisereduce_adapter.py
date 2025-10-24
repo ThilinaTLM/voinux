@@ -119,17 +119,14 @@ class NoiseReduceProcessor(IAudioProcessor):
         Returns:
             np.ndarray: Noise-reduced audio samples
         """
-        # Convert time mask from milliseconds to seconds
-        time_mask_smooth_s = self.time_mask_smooth_ms / 1000.0
-
         # Apply noise reduction
-        reduced = nr.reduce_noise(
+        reduced: np.ndarray = nr.reduce_noise(
             y=audio_data,
             sr=self.sample_rate,
             stationary=self.stationary,
             prop_decrease=self.prop_decrease,
             freq_mask_smooth_hz=self.freq_mask_smooth_hz,
-            time_mask_smooth_ms=time_mask_smooth_s,
+            time_mask_smooth_ms=self.time_mask_smooth_ms,
         )
 
         # Ensure output is float32
