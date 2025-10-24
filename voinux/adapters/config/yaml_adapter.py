@@ -33,7 +33,7 @@ class YAMLConfigRepository(IConfigRepository):
             if not self.config_file.exists():
                 return {}
 
-            with open(self.config_file, "r") as f:
+            with self.config_file.open() as f:
                 config = yaml.safe_load(f)
                 return config if config is not None else {}
         except yaml.YAMLError as e:
@@ -54,7 +54,7 @@ class YAMLConfigRepository(IConfigRepository):
             # Ensure parent directory exists
             self.config_file.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(self.config_file, "w") as f:
+            with self.config_file.open("w") as f:
                 yaml.safe_dump(
                     config,
                     f,
@@ -159,7 +159,7 @@ system:
 
         try:
             self.config_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.config_file, "w") as f:
+            with self.config_file.open("w") as f:
                 f.write(default_config)
             self.config_file.chmod(0o600)
         except Exception as e:

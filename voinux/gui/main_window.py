@@ -195,12 +195,13 @@ class FloatingPanel(QWidget):
         if self.is_recording:
             # Currently recording - show active elapsed time
             elapsed = (datetime.now() - self.session_start).total_seconds() - self.paused_duration
+        # Paused - show frozen elapsed time
+        elif self.pause_start:
+            elapsed = (
+                self.pause_start - self.session_start
+            ).total_seconds() - self.paused_duration
         else:
-            # Paused - show frozen elapsed time
-            if self.pause_start:
-                elapsed = (self.pause_start - self.session_start).total_seconds() - self.paused_duration
-            else:
-                elapsed = 0
+            elapsed = 0
 
         minutes = int(elapsed // 60)
         seconds = int(elapsed % 60)
@@ -217,7 +218,9 @@ class FloatingPanel(QWidget):
             widget_under_mouse = self.childAt(event.pos())
             if widget_under_mouse not in [self.action_button, self.close_button]:
                 self.dragging = True
-                self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+                self.drag_position = (
+                    event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+                )
             event.accept()
 
     def mouseMoveEvent(self, event) -> None:

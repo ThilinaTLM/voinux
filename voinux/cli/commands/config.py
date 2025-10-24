@@ -31,6 +31,7 @@ def config_show(ctx: click.Context) -> None:
 
         # Convert to dict for display
         from voinux.config.loader import ConfigLoader as CL
+
         config_dict = CL(config_file)._config_to_dict(config)
 
         # Display as YAML
@@ -56,7 +57,9 @@ def config_init(ctx: click.Context, force: bool) -> None:
         loader = ConfigLoader(config_file=config_file)
 
         if await loader.exists() and not force:
-            console.print("[yellow]Configuration file already exists. Use --force to overwrite.[/yellow]")
+            console.print(
+                "[yellow]Configuration file already exists. Use --force to overwrite.[/yellow]"
+            )
             return
 
         await loader.repo.create_default_config()
@@ -82,6 +85,6 @@ def config_path(ctx: click.Context) -> None:
             console.print("[green]✓ File exists[/green]")
         else:
             console.print("[yellow]⚠ File does not exist (using defaults)[/yellow]")
-            console.print(f"Run 'voinux config init' to create it")
+            console.print("Run 'voinux config init' to create it")
 
     asyncio.run(_check())

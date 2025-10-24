@@ -2,12 +2,9 @@
 
 import asyncio
 import logging
-from pathlib import Path
-from typing import Optional
 
 import click
 from rich.console import Console
-from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 
@@ -18,7 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 @click.command()
-@click.option("--model", type=str, help="Whisper model to use (tiny, base, small, medium, large-v3, large-v3-turbo)")
+@click.option(
+    "--model",
+    type=str,
+    help="Whisper model to use (tiny, base, small, medium, large-v3, large-v3-turbo)",
+)
 @click.option("--device", type=click.Choice(["cuda", "cpu", "auto"]), help="Device to use")
 @click.option("--language", "-l", type=str, help="Target language code (e.g., 'en', 'es')")
 @click.option("--no-vad", is_flag=True, help="Disable voice activation detection")
@@ -27,9 +28,9 @@ logger = logging.getLogger(__name__)
 @click.pass_context
 def start(
     ctx: click.Context,
-    model: Optional[str],
-    device: Optional[str],
-    language: Optional[str],
+    model: str | None,
+    device: str | None,
+    language: str | None,
     no_vad: bool,
     continuous: bool,
     gui: bool,
@@ -69,6 +70,7 @@ def start(
 
         # Import and run GUI
         from voinux.gui.main import run_gui
+
         run_gui(config)
         return
 
@@ -143,15 +145,11 @@ def start(
             stats_table.add_row("Silence Chunks", str(session.total_silence_chunks))
             if session.total_speech_chunks > 0:
                 stats_table.add_row(
-                    "Avg Transcription Time",
-                    f"{session.average_transcription_time_ms:.0f}ms"
+                    "Avg Transcription Time", f"{session.average_transcription_time_ms:.0f}ms"
                 )
             stats_table.add_row("Characters Typed", str(session.total_characters_typed))
             if config.vad.enabled:
-                stats_table.add_row(
-                    "VAD Efficiency",
-                    f"{session.vad_efficiency_percent:.1f}%"
-                )
+                stats_table.add_row("VAD Efficiency", f"{session.vad_efficiency_percent:.1f}%")
 
             console.print(stats_table)
 

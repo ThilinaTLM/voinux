@@ -3,7 +3,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -41,7 +40,7 @@ class TranscriptionResult:
     """Represents the result of transcribing an audio chunk."""
 
     text: str  # Transcribed text
-    language: Optional[str]  # Detected or specified language code (e.g., "en", "es")
+    language: str | None  # Detected or specified language code (e.g., "en", "es")
     confidence: float  # Confidence score (0.0 to 1.0)
     processing_time_ms: int  # Time taken for transcription in milliseconds
     timestamp: datetime  # When the transcription completed
@@ -62,9 +61,9 @@ class ModelConfig:
     device: str  # Device to run on ("cuda", "cpu", "auto")
     compute_type: str  # Computation precision ("int8", "float16", "float32")
     beam_size: int  # Beam size for beam search decoding
-    language: Optional[str]  # Target language (None for auto-detection)
+    language: str | None  # Target language (None for auto-detection)
     vad_filter: bool  # Whether to use VAD filtering
-    model_path: Optional[str]  # Custom model path (None for default cache)
+    model_path: str | None  # Custom model path (None for default cache)
 
     def __post_init__(self) -> None:
         """Validate model configuration."""
@@ -76,15 +75,12 @@ class ModelConfig:
 
         valid_devices = {"cuda", "cpu", "auto"}
         if self.device not in valid_devices:
-            raise ValueError(
-                f"Invalid device: {self.device}. Must be one of {valid_devices}"
-            )
+            raise ValueError(f"Invalid device: {self.device}. Must be one of {valid_devices}")
 
         valid_compute_types = {"int8", "float16", "float32"}
         if self.compute_type not in valid_compute_types:
             raise ValueError(
-                f"Invalid compute_type: {self.compute_type}. "
-                f"Must be one of {valid_compute_types}"
+                f"Invalid compute_type: {self.compute_type}. Must be one of {valid_compute_types}"
             )
 
         if self.beam_size < 1:
@@ -104,9 +100,13 @@ class BufferConfig:
         if self.silence_threshold_ms < 0:
             raise ValueError(f"silence_threshold_ms must be >= 0, got {self.silence_threshold_ms}")
         if self.max_buffer_duration_ms < 1000:
-            raise ValueError(f"max_buffer_duration_ms must be >= 1000ms, got {self.max_buffer_duration_ms}")
+            raise ValueError(
+                f"max_buffer_duration_ms must be >= 1000ms, got {self.max_buffer_duration_ms}"
+            )
         if self.min_utterance_duration_ms < 0:
-            raise ValueError(f"min_utterance_duration_ms must be >= 0, got {self.min_utterance_duration_ms}")
+            raise ValueError(
+                f"min_utterance_duration_ms must be >= 0, got {self.min_utterance_duration_ms}"
+            )
 
 
 @dataclass
@@ -119,7 +119,7 @@ class SpeechBuffer:
     buffered_chunks: list[AudioChunk] = field(default_factory=list)
     silence_duration_ms: int = 0
     total_buffered_duration_ms: int = 0
-    utterance_start_time: Optional[datetime] = None
+    utterance_start_time: datetime | None = None
 
     def add_chunk(self, chunk: AudioChunk, is_speech: bool) -> None:
         """Add a chunk to the buffer and update state.
@@ -141,10 +141,9 @@ class SpeechBuffer:
             if self.state == SpeechState.BUFFERING:
                 self.buffered_chunks.append(chunk)
                 self.total_buffered_duration_ms += chunk.duration_ms
-        else:
-            # Increment silence counter if we were buffering
-            if self.state == SpeechState.BUFFERING:
-                self.silence_duration_ms += chunk.duration_ms
+        # Increment silence counter if we were buffering
+        elif self.state == SpeechState.BUFFERING:
+            self.silence_duration_ms += chunk.duration_ms
 
     def should_process(self) -> bool:
         """Check if the buffer should be processed.
@@ -161,10 +160,7 @@ class SpeechBuffer:
             return True
 
         # Process if max buffer duration reached (safety limit)
-        if self.total_buffered_duration_ms >= self.buffer_config.max_buffer_duration_ms:
-            return True
-
-        return False
+        return self.total_buffered_duration_ms >= self.buffer_config.max_buffer_duration_ms
 
     def should_ignore(self) -> bool:
         """Check if the buffered utterance should be ignored (too short).
@@ -225,7 +221,7 @@ class TranscriptionSession:
     total_utterance_duration_ms: int = 0
     total_buffer_overflows: int = 0  # Times max buffer was hit
     is_active: bool = True
-    ended_at: Optional[datetime] = None
+    ended_at: datetime | None = None
 
     def record_chunk(self, is_speech: bool, transcription_time_ms: int = 0) -> None:
         """Record processing of an audio chunk."""
@@ -236,7 +232,9 @@ class TranscriptionSession:
         else:
             self.total_silence_chunks += 1
 
-    def record_utterance(self, utterance_duration_ms: int, transcription_time_ms: int, was_overflow: bool = False) -> None:
+    def record_utterance(
+        self, utterance_duration_ms: int, transcription_time_ms: int, was_overflow: bool = False
+    ) -> None:
         """Record processing of a complete utterance.
 
         Args:

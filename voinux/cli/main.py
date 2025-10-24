@@ -3,9 +3,10 @@
 # IMPORTANT: Set up CUDA library paths before any imports
 # This must happen before any CUDA/CTranslate2 libraries are loaded
 import os
-import sys
 import site
+import sys
 from pathlib import Path as _Path
+
 
 def _setup_cuda_environment() -> None:
     """Set up CUDA library paths for CTranslate2.
@@ -51,6 +52,7 @@ def _setup_cuda_environment() -> None:
     except Exception:
         pass  # Fail silently, system CUDA libraries may still work
 
+
 _setup_cuda_environment()
 
 # Now import the rest
@@ -58,18 +60,15 @@ import asyncio
 import logging
 import logging.handlers
 from pathlib import Path
-from typing import Optional
 
 import click
 from rich.console import Console
-
-from voinux.config.loader import ConfigLoader
 
 # Create console for rich output
 console = Console()
 
 
-def setup_logging(log_level: str = "INFO", log_file: Optional[Path] = None) -> None:
+def setup_logging(log_level: str = "INFO", log_file: Path | None = None) -> None:
     """Set up logging configuration.
 
     Args:
@@ -81,8 +80,7 @@ def setup_logging(log_level: str = "INFO", log_file: Optional[Path] = None) -> N
 
     # Create formatter
     formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
 
     # Set root logger level
@@ -105,7 +103,7 @@ def setup_logging(log_level: str = "INFO", log_file: Optional[Path] = None) -> N
         file_handler = logging.handlers.RotatingFileHandler(
             log_file,
             maxBytes=10 * 1024 * 1024,  # 10MB
-            backupCount=5
+            backupCount=5,
         )
         file_handler.setLevel(numeric_level)
         file_handler.setFormatter(formatter)
@@ -129,7 +127,13 @@ def setup_logging(log_level: str = "INFO", log_file: Optional[Path] = None) -> N
     help="Set logging level",
 )
 @click.pass_context
-def cli(ctx: click.Context, config_file: Optional[Path], verbose: bool, quiet: bool, log_level: Optional[str]) -> None:
+def cli(
+    ctx: click.Context,
+    config_file: Path | None,
+    verbose: bool,
+    quiet: bool,
+    log_level: str | None,
+) -> None:
     """Voinux - Privacy-focused voice typing for Linux.
 
     Real-time voice-to-text transcription using local GPU-accelerated Whisper models.

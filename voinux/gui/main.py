@@ -4,7 +4,6 @@ import asyncio
 import logging
 import signal
 import sys
-from typing import Optional
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
@@ -28,17 +27,17 @@ class VoinuxGUI:
             config: Application configuration
         """
         self.config = config
-        self.app: Optional[QApplication] = None
-        self.loop: Optional[QEventLoop] = None
-        self.window: Optional[FloatingPanel] = None
-        self.use_case: Optional[StartTranscription] = None
-        self.session: Optional[TranscriptionSession] = None
+        self.app: QApplication | None = None
+        self.loop: QEventLoop | None = None
+        self.window: FloatingPanel | None = None
+        self.use_case: StartTranscription | None = None
+        self.session: TranscriptionSession | None = None
 
         # Track the transcription task for proper cancellation
-        self.transcription_task: Optional[asyncio.Task] = None
+        self.transcription_task: asyncio.Task | None = None
 
         # Stats update timer
-        self.stats_timer: Optional[QTimer] = None
+        self.stats_timer: QTimer | None = None
 
         # Track if we've done a clean shutdown to avoid double cleanup
         self._clean_shutdown = False
@@ -57,7 +56,7 @@ class VoinuxGUI:
         # Install signal handler for Ctrl+C (SIGINT)
         # Note: We use Python's signal.signal() instead of loop.add_signal_handler()
         # because QEventLoop doesn't support add_signal_handler() properly
-        def signal_handler(signum, frame):
+        def signal_handler(signum: int, _frame: object) -> None:
             logger.info("Received signal %s, initiating graceful shutdown", signum)
             self._on_quit_requested()
 
@@ -219,7 +218,7 @@ class VoinuxGUI:
                     # Wait with a timeout to prevent hanging
                     await asyncio.wait_for(self.transcription_task, timeout=5.0)
                     logger.debug("Transcription task completed successfully")
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.warning("Transcription task did not complete within timeout, cancelling")
                     self.transcription_task.cancel()
                     try:

@@ -1,6 +1,6 @@
 """Statistics display widget."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont

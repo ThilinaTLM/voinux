@@ -3,15 +3,14 @@
 import asyncio
 import warnings
 from pathlib import Path
-from typing import Optional
-
-# Suppress huggingface_hub deprecation warnings
-warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
 
 from faster_whisper.utils import download_model
 
 from voinux.domain.exceptions import ModelDownloadError
 from voinux.domain.ports import IModelManager
+
+# Suppress huggingface_hub deprecation warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
 
 
 class ModelCache(IModelManager):
@@ -85,7 +84,7 @@ class ModelCache(IModelManager):
         except Exception as e:
             raise ModelDownloadError(f"Failed to download model '{model_name}': {e}") from e
 
-    async def get_model_path(self, model_name: str) -> Optional[Path]:
+    async def get_model_path(self, model_name: str) -> Path | None:
         """Get the local path to a cached model.
 
         Args:

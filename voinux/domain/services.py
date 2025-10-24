@@ -3,8 +3,8 @@
 import asyncio
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable, Optional
 
 from voinux.domain.entities import (
     AudioChunk,
@@ -38,9 +38,9 @@ class TranscriptionPipeline:
         recognizer: ISpeechRecognizer,
         keyboard: IKeyboardSimulator,
         session: TranscriptionSession,
-        buffer_config: Optional[BufferConfig] = None,
+        buffer_config: BufferConfig | None = None,
         vad_enabled: bool = True,
-        on_audio_chunk: Optional[Callable[[AudioChunk, bool], None]] = None,
+        on_audio_chunk: Callable[[AudioChunk, bool], None] | None = None,
     ) -> None:
         """Initialize the transcription pipeline.
 
@@ -63,8 +63,8 @@ class TranscriptionPipeline:
         self.vad_enabled = vad_enabled
         self.on_audio_chunk = on_audio_chunk
         self._running = False
-        self._stop_event: Optional[asyncio.Event] = None
-        self._speech_buffer: Optional[SpeechBuffer] = None
+        self._stop_event: asyncio.Event | None = None
+        self._speech_buffer: SpeechBuffer | None = None
 
     async def start(self) -> None:
         """Start the transcription pipeline.
@@ -266,7 +266,7 @@ class SessionManager:
 
     def __init__(self) -> None:
         """Initialize the session manager."""
-        self._current_session: Optional[TranscriptionSession] = None
+        self._current_session: TranscriptionSession | None = None
 
     def create_session(self, model_config: ModelConfig) -> TranscriptionSession:
         """Create a new transcription session.
@@ -301,7 +301,7 @@ class SessionManager:
         self._current_session = session
         return session
 
-    def get_current_session(self) -> Optional[TranscriptionSession]:
+    def get_current_session(self) -> TranscriptionSession | None:
         """Get the current active session.
 
         Returns:
@@ -309,7 +309,7 @@ class SessionManager:
         """
         return self._current_session
 
-    def end_current_session(self) -> Optional[TranscriptionSession]:
+    def end_current_session(self) -> TranscriptionSession | None:
         """End the current session and return it for reporting.
 
         Returns:

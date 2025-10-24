@@ -1,7 +1,6 @@
 """Factories for creating adapters with dependency injection."""
 
 import os
-from pathlib import Path
 
 from voinux.adapters.audio.soundcard_adapter import SoundCardAudioCapture
 from voinux.adapters.keyboard.stdout_adapter import StdoutKeyboard

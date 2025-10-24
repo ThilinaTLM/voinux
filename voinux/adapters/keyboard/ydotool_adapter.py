@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-from typing import Optional
 
 from voinux.domain.exceptions import KeyboardSimulationError
 from voinux.domain.ports import IKeyboardSimulator
@@ -62,7 +61,7 @@ class YDotoolKeyboard(IKeyboardSimulator):
                 stderr=asyncio.subprocess.PIPE,
             )
 
-            stdout, stderr = await process.communicate()
+            _stdout, stderr = await process.communicate()
 
             if process.returncode != 0:
                 error_msg = stderr.decode().strip()
@@ -73,7 +72,7 @@ class YDotoolKeyboard(IKeyboardSimulator):
                     raise KeyboardSimulationError(
                         "ydotool requires uinput permissions. "
                         "Run: sudo usermod -aG input $USER && "
-                        "echo 'KERNEL==\"uinput\", GROUP=\"input\", MODE=\"0660\"' | "
+                        'echo \'KERNEL=="uinput", GROUP="input", MODE="0660"\' | '
                         "sudo tee /etc/udev/rules.d/80-uinput.rules"
                     )
 
@@ -83,10 +82,10 @@ class YDotoolKeyboard(IKeyboardSimulator):
             logger.debug("YDotool keyboard: Text typed successfully")
 
         except FileNotFoundError:
-            logger.error("ydotool not found on system")
+            logger.exception("ydotool not found on system")
             raise KeyboardSimulationError(
                 "ydotool not found. Please install it: sudo apt install ydotool"
-            )
+            ) from None
         except Exception as e:
             logger.error("Failed to type text: %s", e, exc_info=True)
             raise KeyboardSimulationError(f"Failed to type text: {e}") from e

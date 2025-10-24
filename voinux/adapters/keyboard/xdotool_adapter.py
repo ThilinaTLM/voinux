@@ -2,9 +2,6 @@
 
 import asyncio
 import logging
-import shlex
-import subprocess
-from typing import Optional
 
 from voinux.domain.exceptions import KeyboardSimulationError
 from voinux.domain.ports import IKeyboardSimulator
@@ -65,22 +62,20 @@ class XDotoolKeyboard(IKeyboardSimulator):
                 stderr=asyncio.subprocess.PIPE,
             )
 
-            stdout, stderr = await process.communicate()
+            _stdout, stderr = await process.communicate()
 
             if process.returncode != 0:
                 error_msg = stderr.decode().strip()
                 logger.error("XDotool command failed: %s", error_msg)
-                raise KeyboardSimulationError(
-                    f"xdotool command failed: {error_msg}"
-                )
+                raise KeyboardSimulationError(f"xdotool command failed: {error_msg}")
 
             logger.debug("XDotool keyboard: Text typed successfully")
 
         except FileNotFoundError:
-            logger.error("xdotool not found on system")
+            logger.exception("xdotool not found on system")
             raise KeyboardSimulationError(
                 "xdotool not found. Please install it: sudo apt install xdotool"
-            )
+            ) from None
         except Exception as e:
             logger.error("Failed to type text: %s", e, exc_info=True)
             raise KeyboardSimulationError(f"Failed to type text: {e}") from e

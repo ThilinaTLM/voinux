@@ -5,8 +5,8 @@ following the hexagonal architecture pattern.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator, Optional
 
 from voinux.domain.entities import AudioChunk, ModelConfig, TranscriptionResult
 
@@ -155,7 +155,7 @@ class IModelManager(ABC):
         ...
 
     @abstractmethod
-    async def get_model_path(self, model_name: str) -> Optional[Path]:
+    async def get_model_path(self, model_name: str) -> Path | None:
         """Get the local path to a cached model.
 
         Args:

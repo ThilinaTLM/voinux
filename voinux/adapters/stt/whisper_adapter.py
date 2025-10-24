@@ -3,13 +3,11 @@
 import asyncio
 import logging
 import os
-import sys
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import torch
 from faster_whisper import WhisperModel
@@ -30,9 +28,9 @@ class WhisperRecognizer(ISpeechRecognizer):
 
     def __init__(self) -> None:
         """Initialize the Whisper recognizer."""
-        self.model: Optional[WhisperModel] = None
-        self.model_config: Optional[ModelConfig] = None
-        self.executor: Optional[ThreadPoolExecutor] = None
+        self.model: WhisperModel | None = None
+        self.model_config: ModelConfig | None = None
+        self.executor: ThreadPoolExecutor | None = None
         self.device: str = "cpu"
         self._setup_cuda_libraries()
 
@@ -204,6 +202,7 @@ class WhisperRecognizer(ISpeechRecognizer):
         try:
             # Find the nvidia package directories in site-packages
             import site
+
             site_packages = site.getsitepackages()
 
             cuda_lib_paths = []

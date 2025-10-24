@@ -3,7 +3,7 @@
 import os
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from voinux.adapters.config.yaml_adapter import YAMLConfigRepository
 from voinux.config.config import Config
@@ -13,7 +13,7 @@ from voinux.domain.exceptions import ConfigError
 class ConfigLoader:
     """Loads configuration with precedence: defaults → file → CLI → env."""
 
-    def __init__(self, config_file: Optional[Path] = None) -> None:
+    def __init__(self, config_file: Path | None = None) -> None:
         """Initialize the config loader.
 
         Args:
@@ -27,8 +27,8 @@ class ConfigLoader:
 
     async def load(
         self,
-        cli_overrides: Optional[dict[str, Any]] = None,
-        env_overrides: Optional[dict[str, Any]] = None,
+        cli_overrides: dict[str, Any] | None = None,
+        env_overrides: dict[str, Any] | None = None,
     ) -> Config:
         """Load configuration with all precedence layers.
 

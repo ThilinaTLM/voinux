@@ -3,7 +3,6 @@
 import asyncio
 import logging
 import warnings
-from typing import Optional
 
 import numpy as np
 
@@ -29,7 +28,7 @@ class WebRTCVAD(IVoiceActivationDetector):
 
     def __init__(self) -> None:
         """Initialize the WebRTC VAD adapter."""
-        self.vad: Optional[webrtcvad.Vad] = None
+        self.vad: webrtcvad.Vad | None = None
         self.sample_rate: int = 16000
         self.frame_size: int = 0
         self.aggressiveness: int = 2

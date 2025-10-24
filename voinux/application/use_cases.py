@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import signal
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from voinux.application.factories import (
     create_audio_capture,
@@ -30,13 +30,13 @@ class StartTranscription:
             config: Application configuration
         """
         self.config = config
-        self.pipeline: Optional[TranscriptionPipeline] = None
+        self.pipeline: TranscriptionPipeline | None = None
         self.session_manager = SessionManager()
 
     async def execute(
         self,
-        on_status_change: Optional[Callable[[str], None]] = None,
-        on_audio_chunk: Optional[Callable[[any, bool], None]] = None,  # type: ignore[valid-type]
+        on_status_change: Callable[[str], None] | None = None,
+        on_audio_chunk: Callable[[any, bool], None] | None = None,  # type: ignore[valid-type]
         install_signal_handlers: bool = True,
     ) -> TranscriptionSession:
         """Execute the transcription use case.

@@ -4,7 +4,6 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Optional
 
 import numpy as np
 import soundcard as sc
@@ -23,7 +22,7 @@ class SoundCardAudioCapture(IAudioCapture):
         self,
         sample_rate: int = 16000,
         chunk_duration_ms: int = 1000,
-        device_index: Optional[int] = None,
+        device_index: int | None = None,
     ) -> None:
         """Initialize the sound card audio capture.
 
@@ -36,9 +35,9 @@ class SoundCardAudioCapture(IAudioCapture):
         self.chunk_duration_ms = chunk_duration_ms
         self.device_index = device_index
         self.chunk_size = (sample_rate * chunk_duration_ms) // 1000
-        self.microphone: Optional[sc.Microphone] = None
+        self.microphone: sc.Microphone | None = None
         self._running = False
-        self._queue: Optional[asyncio.Queue[AudioChunk]] = None
+        self._queue: asyncio.Queue[AudioChunk] | None = None
 
     async def start(self) -> None:
         """Start audio capture.
@@ -52,8 +51,7 @@ class SoundCardAudioCapture(IAudioCapture):
                 mics = sc.all_microphones()
                 if self.device_index >= len(mics):
                     raise AudioCaptureError(
-                        f"Invalid device index: {self.device_index}. "
-                        f"Available devices: {len(mics)}"
+                        f"Invalid device index: {self.device_index}. Available devices: {len(mics)}"
                     )
                 self.microphone = mics[self.device_index]
                 logger.info(

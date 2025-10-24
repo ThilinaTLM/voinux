@@ -19,7 +19,9 @@ def test_audio(ctx: click.Context, duration: int) -> None:
     console: Console = ctx.obj["console"]
 
     async def _test() -> None:
-        console.print(Panel(f"[bold cyan]Testing Audio Capture ({duration}s)[/bold cyan]", expand=False))
+        console.print(
+            Panel(f"[bold cyan]Testing Audio Capture ({duration}s)[/bold cyan]", expand=False)
+        )
         console.print()
 
         # Load config
@@ -108,7 +110,9 @@ def test_keyboard(ctx: click.Context) -> None:
 
         try:
             keyboard = await create_keyboard_simulator(config)
-            console.print(f"[green]✓ Keyboard backend initialized: {type(keyboard).__name__}[/green]")
+            console.print(
+                f"[green]✓ Keyboard backend initialized: {type(keyboard).__name__}[/green]"
+            )
             console.print()
 
             console.print("Testing keyboard output in 3 seconds...")
