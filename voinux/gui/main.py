@@ -116,8 +116,10 @@ class VoinuxGUI:
             # Status callback
             def on_status(status: str) -> None:
                 logger.info("Status: %s", status)
+                # Map internal status messages to user-friendly ones
                 if self.window:
-                    self.window.set_status(status)
+                    if "initialized" in status.lower() or "ready" in status.lower():
+                        self.window.set_status("Listening")
 
             # Start session tracking
             if self.window:
@@ -131,12 +133,12 @@ class VoinuxGUI:
 
             # Update final status
             if self.window:
-                self.window.set_status("✓ Session Complete")
+                self.window.set_status("Stopped")
 
         except Exception as e:
             logger.error("Transcription failed: %s", e, exc_info=True)
             if self.window:
-                self.window.set_status(f"Error: {e}", is_error=True)
+                self.window.set_status("Error", is_error=True)
 
     def _update_stats(self) -> None:
         """Update GUI statistics from the current session."""
@@ -182,8 +184,7 @@ class VoinuxGUI:
                 logger.info("Transcription stopped")
 
                 if self.window:
-                    self.window.set_status("✓ Stopped")
-                    self.window.show_stopped()  # Re-enable the button
+                    self.window.show_stopped()  # Re-enable the button and set status
 
         except Exception as e:
             logger.error("Error stopping transcription: %s", e, exc_info=True)
@@ -205,9 +206,31 @@ class VoinuxGUI:
         """Clean up and quit the application."""
         try:
             logger.info("Starting cleanup before quit")
+
+            # Stop the use case first
             if self.use_case:
                 await self.use_case.stop()
                 logger.info("Transcription stopped successfully")
+
+            # Wait for the transcription task to complete
+            if self.transcription_task and not self.transcription_task.done():
+                logger.debug("Waiting for transcription task to complete")
+                try:
+                    # Wait with a timeout to prevent hanging
+                    await asyncio.wait_for(self.transcription_task, timeout=5.0)
+                    logger.debug("Transcription task completed successfully")
+                except asyncio.TimeoutError:
+                    logger.warning("Transcription task did not complete within timeout, cancelling")
+                    self.transcription_task.cancel()
+                    try:
+                        await self.transcription_task
+                    except asyncio.CancelledError:
+                        logger.debug("Transcription task cancelled successfully")
+                except asyncio.CancelledError:
+                    logger.debug("Transcription task was already cancelled")
+                except Exception as e:
+                    logger.error("Error waiting for transcription task: %s", e, exc_info=True)
+
         except Exception as e:
             logger.error("Error during cleanup: %s", e, exc_info=True)
         finally:
