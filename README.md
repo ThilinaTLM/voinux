@@ -12,7 +12,7 @@ Voinux provides real-time voice-to-text transcription using local GPU-accelerate
 - 🌍 **100+ languages** - Multilingual support with auto-detection
 - ⌨️ **System-wide typing** - Works in any application (browser, IDE, text editor, etc.)
 - 🎤 **Smart VAD** - Voice activation detection reduces GPU usage by 50%+ during silence
-- 🖥️ **CLI & GUI modes** - Floating panel with real-time stats or headless operation
+- 🖥️ **CLI interface** - Clean terminal interface with real-time stats
 - ✨ **Zero configuration** - Automatic model download and optimal settings detection
 - 🏗️ **Clean architecture** - Hexagonal design for testability and extensibility
 
@@ -79,7 +79,7 @@ On first run, Voinux will automatically download the default Whisper model (~140
 
 ### How It Works
 
-1. Start Voinux with `voinux start` or `voinux start --gui`
+1. Start Voinux with `voinux start`
 2. Speak into your microphone
 3. Text appears automatically in your focused application
 4. Press `Ctrl+C` in the terminal to stop transcription
@@ -91,9 +91,6 @@ Voinux runs continuously in the background, listening to your microphone and typ
 ```bash
 # Start with default settings
 voinux start
-
-# Start with GUI (floating stats panel)
-voinux start --gui
 
 # Choose a specific Whisper model
 voinux start --model base              # Faster, less accurate
@@ -112,7 +109,7 @@ voinux start --device cpu
 voinux start --no-vad
 
 # Combine options
-voinux start --gui --model base --language en
+voinux start --model base --language en
 ```
 
 ### Available Models
@@ -190,7 +187,7 @@ Voinux follows **hexagonal (ports and adapters) architecture** for clean separat
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        Application                          │
-│                   (CLI, GUI, Use Cases)                     │
+│                    (CLI, Use Cases)                         │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────┼─────────────────────────────┐
@@ -231,8 +228,7 @@ voinux/
 ├── application/     # Use cases and orchestration
 │   ├── use_cases.py # Application logic
 │   └── factories.py # Dependency injection
-├── cli/             # Click-based CLI interface
-└── gui/             # PyQt6-based GUI (optional)
+└── cli/             # Click-based CLI interface
 ```
 
 For detailed architecture documentation, see `openspec/changes/implement-voice-transcription/design.md`.

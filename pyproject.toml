@@ -29,8 +29,6 @@ dependencies = [
     "click>=8.0.0",
     "pyyaml>=6.0",
     "rich>=13.0.0",
-    "PyQt6>=6.6.0",
-    "qasync>=0.27.0",
 ]
 
 [project.optional-dependencies]
@@ -48,7 +46,6 @@ dev = [
     "pytest-cov>=4.0.0",
     "mypy>=1.5.0",
     "ruff>=0.9.0",
-    "pre-commit>=3.0.0",
 ]
 
 [project.scripts]
@@ -76,18 +73,13 @@ disallow_untyped_defs = true
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
-module = ["webrtcvad", "faster_whisper", "faster_whisper.*", "soundcard", "qasync", "click", "rich", "rich.*", "PyQt6", "PyQt6.*", "numpy", "numpy.*", "torch", "torch.*", "noisereduce", "noisereduce.*"]
+module = ["webrtcvad", "faster_whisper", "faster_whisper.*", "soundcard", "click", "rich", "rich.*", "numpy", "numpy.*", "torch", "torch.*", "noisereduce", "noisereduce.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["voinux.cli.*"]
 # Ignore untyped decorators from Click
 disable_error_code = ["misc"]
-
-[[tool.mypy.overrides]]
-module = ["voinux.gui.*"]
-# GUI code has some unavoidable type issues with Qt and qasync
-disable_error_code = ["no-untyped-def", "no-untyped-call", "union-attr", "type-arg", "misc"]
 
 [tool.ruff]
 line-length = 100
@@ -123,9 +115,6 @@ ignore = [
     "PLR2004",   # magic value comparison (style preference)
     "PLC0415",   # import outside top-level (often intentional for lazy loading)
 ]
-
-[tool.ruff.lint.per-file-ignores]
-"voinux/gui/**/*.py" = ["N802"]  # Qt methods must use camelCase
 
 [tool.ruff.format]
 quote-style = "double"

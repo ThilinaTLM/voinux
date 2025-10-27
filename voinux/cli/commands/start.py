@@ -10,7 +10,6 @@ from rich.panel import Panel
 from rich.table import Table
 
 from voinux.application.use_cases import StartTranscription
-from voinux.config.config import Config
 from voinux.config.loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
@@ -26,7 +25,6 @@ logger = logging.getLogger(__name__)
 @click.option("--language", "-l", type=str, help="Target language code (e.g., 'en', 'es')")
 @click.option("--no-vad", is_flag=True, help="Disable voice activation detection")
 @click.option("--continuous", "-c", is_flag=True, help="Continuous mode (restart on errors)")
-@click.option("--gui", is_flag=True, help="Launch GUI instead of CLI interface")
 @click.pass_context
 def start(
     ctx: click.Context,
@@ -34,46 +32,13 @@ def start(
     device: str | None,
     language: str | None,
     no_vad: bool,
-    continuous: bool,  # Reserved for future use
-    gui: bool,
+    _continuous: bool,  # Reserved for future use
 ) -> None:
     """Start real-time voice transcription.
 
-    Press Ctrl+C to stop transcription (CLI mode).
-    Use the Stop button to stop (GUI mode).
+    Press Ctrl+C to stop transcription.
     """
     console: Console = ctx.obj["console"]
-
-    # If GUI mode, launch GUI and return early
-    if gui:
-        logger.info("Launching GUI mode")
-
-        async def _start_gui() -> Config:
-            # Load configuration
-            config_file = ctx.obj.get("config_file")
-            loader = ConfigLoader(config_file=config_file)
-
-            # Build CLI overrides
-            cli_overrides: dict[str, Any] = {}
-            if model:
-                cli_overrides.setdefault("faster_whisper", {})["model"] = model
-            if device:
-                cli_overrides.setdefault("faster_whisper", {})["device"] = device
-            if language:
-                cli_overrides.setdefault("faster_whisper", {})["language"] = language
-            if no_vad:
-                cli_overrides.setdefault("vad", {})["enabled"] = False
-
-            return await loader.load(cli_overrides=cli_overrides)
-
-        # Get config
-        config = asyncio.run(_start_gui())
-
-        # Import and run GUI
-        from voinux.gui.main import run_gui
-
-        run_gui(config)
-        return
 
     async def _start() -> None:
         logger.info("Start command invoked")
