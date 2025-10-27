@@ -7,6 +7,6 @@ wheels/
 .venv
 .pytest_cache
 .claude
-CLAUDE.md
-openspec
-AGENTS.md
+#CLAUDE.md
+#openspec
+#AGENTS.md
