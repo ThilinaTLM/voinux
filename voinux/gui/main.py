@@ -74,6 +74,9 @@ class VoinuxGUI:
 
         # Show window
         self.window.show()
+        # Explicitly raise window to ensure it starts on top
+        self.window.raise_()
+        self.window.activateWindow()
 
         # Start transcription and track the task
         self.transcription_task = self.loop.create_task(self._start_transcription())

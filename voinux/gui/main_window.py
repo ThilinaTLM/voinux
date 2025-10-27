@@ -241,6 +241,18 @@ class FloatingPanel(QWidget):
             self.dragging = False
             event.accept()
 
+    def showEvent(self, event) -> None:
+        """Handle show event - ensure window stays on top.
+
+        Args:
+            event: Show event
+        """
+        super().showEvent(event)
+        # Explicitly raise the window to ensure it stays on top
+        # This helps with window managers that don't always respect WindowStaysOnTopHint
+        self.raise_()
+        self.activateWindow()
+
     def start_session(self) -> None:
         """Start a new transcription session."""
         self.session_start = datetime.now()
