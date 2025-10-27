@@ -1864,6 +1864,7 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "faster-whisper" },
+    { name = "google-genai" },
     { name = "noisereduce" },
     { name = "pyaudio" },
     { name = "pyyaml" },
@@ -1899,6 +1900,7 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8.0.0" },
     { name = "faster-whisper", specifier = ">=1.0.0" },
+    { name = "google-genai", specifier = ">=1.46.0" },
     { name = "google-genai", marker = "extra == 'cloud'", specifier = ">=0.2.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.5.0" },
     { name = "noisereduce", specifier = ">=3.0.0" },

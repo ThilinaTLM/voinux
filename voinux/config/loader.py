@@ -74,16 +74,26 @@ class ConfigLoader:
 
         return config
 
-    async def save(self, config: Config) -> None:
+    async def save(self, config: Config, minimal: bool = True) -> None:
         """Save configuration to file.
 
         Args:
             config: Configuration to save
+            minimal: If True, save only non-default values (default: True)
 
         Raises:
             ConfigError: If save fails
         """
-        config_dict = self._config_to_dict(config)
+        if minimal:
+            # Save only values that differ from defaults
+            from voinux.config.utils import get_config_diff
+
+            defaults = Config.default()
+            config_dict = get_config_diff(config, defaults)
+        else:
+            # Save full configuration
+            config_dict = self._config_to_dict(config)
+
         await self.repo.save(config_dict)
 
     async def exists(self) -> bool:
@@ -148,6 +158,8 @@ class ConfigLoader:
             "audio": asdict(config.audio),
             "vad": asdict(config.vad),
             "keyboard": asdict(config.keyboard),
+            "buffering": asdict(config.buffering),
+            "noise_suppression": asdict(config.noise_suppression),
             "gemini": asdict(config.gemini),
             "system": {
                 **asdict(config.system),
@@ -178,9 +190,11 @@ class ConfigLoader:
 
         from voinux.config.config import (
             AudioConfig,
+            BufferingConfig,
             FasterWhisperConfig,
             GeminiConfig,
             KeyboardConfig,
+            NoiseSuppressionConfig,
             SystemConfig,
             VADConfig,
         )
@@ -190,6 +204,8 @@ class ConfigLoader:
             audio=AudioConfig(**config_dict.get("audio", {})),
             vad=VADConfig(**config_dict.get("vad", {})),
             keyboard=KeyboardConfig(**config_dict.get("keyboard", {})),
+            buffering=BufferingConfig(**config_dict.get("buffering", {})),
+            noise_suppression=NoiseSuppressionConfig(**config_dict.get("noise_suppression", {})),
             gemini=GeminiConfig(**config_dict.get("gemini", {})),
             system=SystemConfig(**config_dict.get("system", {})),
         )

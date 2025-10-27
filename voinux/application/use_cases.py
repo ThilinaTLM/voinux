@@ -70,6 +70,17 @@ class StartTranscription:
             # Create session with provider info
             actual_provider = self.provider or "whisper"
 
+            # Get API key for cloud providers (with precedence: CLI > Env > Config)
+            api_key = None
+            if actual_provider != "whisper":
+                from voinux.application.api_key_manager import APIKeyManager
+
+                api_key = APIKeyManager.get_api_key(
+                    provider=actual_provider,
+                    cli_api_key=self.api_key_override,
+                    config_api_key=self.config.gemini.api_key,
+                )
+
             model_config = ModelConfig(
                 model_name=self.config.faster_whisper.model,
                 device=self.config.faster_whisper.device,
@@ -79,6 +90,7 @@ class StartTranscription:
                 vad_filter=False,
                 model_path=self.config.faster_whisper.model_path,
                 provider=actual_provider,
+                api_key=api_key,
             )
 
             session = self.session_manager.create_session(model_config)

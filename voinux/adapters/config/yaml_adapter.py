@@ -77,130 +77,41 @@ class YAMLConfigRepository(IConfigRepository):
         return self.config_file.exists()
 
     async def create_default_config(self) -> None:
-        """Create a default configuration file with comments.
+        """Create a minimal default configuration file.
+
+        Creates an empty config file with a helpful header comment.
+        Users can add settings using 'voinux config set' or by editing the file.
 
         Raises:
             ConfigError: If creation fails
         """
-        default_config = """# Voinux Configuration File
-# This file controls the behavior of the Voinux voice transcription system.
-
-# Faster-Whisper Model Configuration
-faster_whisper:
-  # Model size: tiny, base, small, medium, large-v3, large-v3-turbo
-  # Smaller models are faster but less accurate
-  model: base
-
-  # Device: cuda (NVIDIA GPU), cpu, or auto (detect automatically)
-  device: auto
-
-  # Compute type: int8 (fastest, less VRAM), float16 (balanced), float32 (slowest, most accurate)
-  compute_type: int8
-
-  # Beam size for decoding (higher = more accurate but slower)
-  beam_size: 5
-
-  # Target language (e.g., "en", "es", "fr") or null for auto-detection
-  language: null
-
-  # Custom model path (null to use default cache)
-  model_path: null
-
-# Audio Capture Configuration
-audio:
-  # Sample rate in Hz (16000 is optimal for Whisper)
-  sample_rate: 16000
-
-  # Audio chunk duration in milliseconds
-  chunk_duration_ms: 1000
-
-  # Audio backend: auto, soundcard, pyaudio
-  backend: auto
-
-  # Specific audio device index (null for default device)
-  device_index: null
-
-# Voice Activation Detection (VAD) Configuration
-vad:
-  # Enable VAD to skip processing silence (saves GPU usage)
-  enabled: true
-
-  # VAD threshold (0.0-1.0, higher = more aggressive filtering)
-  threshold: 0.5
-
-  # WebRTC VAD aggressiveness (0-3, higher = more aggressive)
-  aggressiveness: 2
-
-# Noise Suppression Configuration
-noise_suppression:
-  # Enable noise suppression to remove background noise (keyboard, fans, etc.)
-  enabled: true
-
-  # Use stationary noise reduction (good for constant background noise like fans, hums)
-  stationary: true
-
-  # Proportion to reduce noise (0.0-1.0, 1.0 = maximum reduction)
-  prop_decrease: 1.0
-
-  # Frequency smoothing in Hz (higher = smoother but less precise)
-  freq_mask_smooth_hz: 500
-
-  # Time smoothing in milliseconds (higher = smoother but less responsive)
-  time_mask_smooth_ms: 50
-
-# Keyboard Simulation Configuration
-keyboard:
-  # Keyboard backend: auto (detect), xdotool (X11), ydotool (Wayland), stdout (testing)
-  backend: auto
-
-  # Delay between keystrokes in milliseconds (0 for instant typing)
-  typing_delay_ms: 0
-
-  # Add space after each transcription
-  add_space_after: true
-
-# Cloud Provider Configuration (OPTIONAL - requires explicit opt-in)
-# WARNING: Cloud providers send audio data over the internet
-# Default is 100% offline. Only enable if you accept privacy/cost trade-offs.
+        minimal_config = """# Voinux Configuration File
 #
-# gemini:
-#   # API key for Google Gemini (get from https://aistudio.google.com/app/apikey)
-#   # Can also be set via GEMINI_API_KEY environment variable
-#   api_key: YOUR_API_KEY_HERE
+# This file contains your custom configuration overrides.
+# Only settings that differ from defaults are stored here.
 #
-#   # Enable AI-powered grammar correction (cloud only)
-#   enable_grammar_correction: true
+# To see all available settings and their current values:
+#   voinux config list
 #
-#   # Privacy acknowledgment (must be true to use cloud providers)
-#   # Set to true to confirm you understand data is sent to Google servers
-#   privacy_acknowledged: false
+# To change a setting:
+#   voinux config set <key> <value>
+#   Example: voinux config set faster_whisper.model large-v3
 #
-#   # Cost protection limits (USD)
-#   max_monthly_cost_usd: 20.00
-#   warn_at_cost_usd: 15.00
+# To view current configuration:
+#   voinux config show
 #
-#   # Custom API endpoint (null for default)
-#   api_endpoint: null
+# For full configuration reference, see:
+#   https://docs.voinux.dev/configuration
+#   Or: voinux config example
+#
+# All default settings are used unless overridden below.
 
-# System Configuration
-system:
-  # Cache directory for models
-  # cache_dir: ~/.cache/voinux
-
-  # Configuration directory
-  # config_dir: ~/.config/voinux
-
-  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
-  log_level: INFO
-
-  # Log file path (null for stdout only)
-  log_file: null
 """
 
         try:
             self.config_file.parent.mkdir(parents=True, exist_ok=True)
             with self.config_file.open("w") as f:
-                f.write(default_config)
+                f.write(minimal_config)
             self.config_file.chmod(0o600)
         except Exception as e:
             raise ConfigError(f"Failed to create default config: {e}") from e
