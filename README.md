@@ -1,13 +1,13 @@
 # Voinux
 
-**Privacy-focused, offline voice typing for Linux**
+**Privacy-focused, offline-first voice typing for Linux**
 
-Voinux provides real-time voice-to-text transcription using local GPU-accelerated Whisper models, ensuring complete privacy, offline operation, and unlimited usage at zero recurring cost.
+Voinux provides real-time voice-to-text transcription using local GPU-accelerated Whisper models by default, ensuring complete privacy, offline operation, and unlimited usage at zero recurring cost. **Optional** cloud providers (Google Gemini) are available for users who want AI-powered grammar correction and accept the privacy/cost trade-offs.
 
 ## ✨ Features
 
 - ⚡ **Real-time transcription** - Sub-2 second latency on GPU
-- 🔒 **100% offline** - No cloud services, no data transmission, no API costs
+- 🔒 **100% offline by default** - No cloud services required, no data transmission, no API costs
 - 🚀 **GPU accelerated** - NVIDIA CUDA and AMD ROCm support with automatic CPU fallback
 - 🌍 **100+ languages** - Multilingual support with auto-detection
 - ⌨️ **System-wide typing** - Works in any application (browser, IDE, text editor, etc.)
@@ -15,14 +15,16 @@ Voinux provides real-time voice-to-text transcription using local GPU-accelerate
 - 🖥️ **CLI interface** - Clean terminal interface with real-time stats
 - ✨ **Zero configuration** - Automatic model download and optimal settings detection
 - 🏗️ **Clean architecture** - Hexagonal design for testability and extensibility
+- ☁️ **Optional cloud providers** - Google Gemini for AI-powered grammar correction (explicit opt-in)
 
 ## 🎯 Why Voinux?
 
-- **Privacy**: Your voice data never leaves your machine
-- **Cost**: No subscription fees or API costs - unlimited usage
+- **Privacy**: 100% offline by default - your voice data never leaves your machine
+- **Cost**: No subscription fees or API costs for offline mode - unlimited usage
 - **Speed**: Local GPU processing beats cloud latency every time
-- **Reliability**: Works anywhere, anytime - no internet required
+- **Reliability**: Works anywhere, anytime - no internet required for core features
 - **Control**: Full control over models, languages, and behavior
+- **Choice**: Optional cloud providers available for those who want advanced features
 
 ## 🚀 Quick Start
 
@@ -123,6 +125,50 @@ voinux start --model base --language en
 | `large-v3-turbo` | 1.6 GB | ~6 GB | Slower | Best | Maximum accuracy |
 
 Models are automatically downloaded on first use and cached in `~/.cache/voinux/models`.
+
+### Optional Cloud Providers (Advanced)
+
+**⚠️ Important: Voinux is offline-first by design. Cloud providers are optional and require explicit opt-in.**
+
+For users who want AI-powered grammar correction and improved accuracy for accents/technical speech, Voinux supports Google Gemini Flash 2.5 as an optional cloud provider.
+
+**Trade-offs:**
+- ✅ **Benefits**: AI grammar correction, better accent handling, improved punctuation
+- ❌ **Privacy**: Audio data sent to Google servers over the internet
+- ❌ **Cost**: ~$0.002/minute (~$10-15/month for typical usage)
+- ❌ **Latency**: 1-3 seconds (vs. <1s offline)
+- ❌ **Requires**: Internet connection and Google API key
+
+**Using Gemini (opt-in):**
+
+```bash
+# 1. Install cloud provider support
+uv sync --extra cloud  # or: pip install voinux[cloud]
+
+# 2. Get API key from https://aistudio.google.com/app/apikey
+
+# 3. Set API key (choose one method):
+export GEMINI_API_KEY=your_key_here          # Environment variable (recommended)
+voinux config set-api-key gemini your_key    # Save to config file
+voinux start --provider gemini --api-key your_key  # CLI override
+
+# 4. Start with Gemini (privacy notice shown on first use)
+voinux start --provider gemini
+
+# 5. Enable grammar correction (optional)
+voinux start --provider gemini --enable-grammar
+```
+
+**Privacy acknowledgment:**
+On first use, Voinux will show a full-screen privacy warning explaining the trade-offs. To skip this notice in future, set `gemini.privacy_acknowledged: true` in your config file.
+
+**Cost protection:**
+Voinux tracks token usage and estimated costs in real-time. Configure budget limits in `~/.config/voinux/config.yaml`:
+```yaml
+gemini:
+  max_monthly_cost_usd: 20.00   # Hard limit (stops transcription)
+  warn_at_cost_usd: 15.00        # Warning threshold
+```
 
 ### Configuration
 
@@ -230,8 +276,6 @@ voinux/
 │   └── factories.py # Dependency injection
 └── cli/             # Click-based CLI interface
 ```
-
-For detailed architecture documentation, see `openspec/changes/implement-voice-transcription/design.md`.
 
 ## 🛠️ Development
 

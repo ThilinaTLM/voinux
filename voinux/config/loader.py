@@ -148,6 +148,7 @@ class ConfigLoader:
             "audio": asdict(config.audio),
             "vad": asdict(config.vad),
             "keyboard": asdict(config.keyboard),
+            "gemini": asdict(config.gemini),
             "system": {
                 **asdict(config.system),
                 "cache_dir": str(config.system.cache_dir),
@@ -178,6 +179,7 @@ class ConfigLoader:
         from voinux.config.config import (
             AudioConfig,
             FasterWhisperConfig,
+            GeminiConfig,
             KeyboardConfig,
             SystemConfig,
             VADConfig,
@@ -188,6 +190,7 @@ class ConfigLoader:
             audio=AudioConfig(**config_dict.get("audio", {})),
             vad=VADConfig(**config_dict.get("vad", {})),
             keyboard=KeyboardConfig(**config_dict.get("keyboard", {})),
+            gemini=GeminiConfig(**config_dict.get("gemini", {})),
             system=SystemConfig(**config_dict.get("system", {})),
         )
 

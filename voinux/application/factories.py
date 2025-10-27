@@ -78,31 +78,86 @@ async def create_noise_suppressor(config: Config) -> IAudioProcessor | None:
     return processor
 
 
-async def create_speech_recognizer(config: Config) -> ISpeechRecognizer:
+async def create_speech_recognizer(
+    config: Config, provider: str | None = None, api_key_override: str | None = None
+) -> ISpeechRecognizer:
     """Create a speech recognizer adapter based on configuration.
 
     Args:
         config: Application configuration
+        provider: Provider override (None to use config default, always defaults to "whisper")
+        api_key_override: API key override from CLI
 
     Returns:
         ISpeechRecognizer: Speech recognizer adapter
     """
+    import logging
+
+    from voinux.application.api_key_manager import APIKeyManager
     from voinux.domain.entities import ModelConfig
 
-    recognizer = WhisperRecognizer()
+    logger = logging.getLogger(__name__)
 
-    model_config = ModelConfig(
-        model_name=config.faster_whisper.model,
-        device=config.faster_whisper.device,
-        compute_type=config.faster_whisper.compute_type,
-        beam_size=config.faster_whisper.beam_size,
-        language=config.faster_whisper.language,
-        vad_filter=False,  # We handle VAD ourselves
-        model_path=config.faster_whisper.model_path,
-    )
+    # Determine provider (default to whisper for offline-first)
+    provider_name = provider or "whisper"
 
-    await recognizer.initialize(model_config)
-    return recognizer
+    # Offline provider (Whisper)
+    if provider_name == "whisper":
+        logger.info("Using Whisper (offline) speech recognizer")
+        recognizer = WhisperRecognizer()
+
+        model_config = ModelConfig(
+            model_name=config.faster_whisper.model,
+            device=config.faster_whisper.device,
+            compute_type=config.faster_whisper.compute_type,
+            beam_size=config.faster_whisper.beam_size,
+            language=config.faster_whisper.language,
+            vad_filter=False,  # We handle VAD ourselves
+            model_path=config.faster_whisper.model_path,
+            provider="whisper",
+        )
+
+        await recognizer.initialize(model_config)
+        return recognizer
+
+    # Cloud provider (Gemini)
+    if provider_name == "gemini":
+        logger.info("Using Gemini (cloud) speech recognizer")
+
+        from voinux.adapters.stt.gemini_adapter import GeminiRecognizer
+
+        # Get API key with precedence: CLI > Env > Config
+        api_key = APIKeyManager.get_api_key(
+            provider="gemini",
+            cli_api_key=api_key_override,
+            config_api_key=config.gemini.api_key,
+        )
+
+        # Validate API key
+        api_key = APIKeyManager.validate_api_key(api_key, "gemini")
+
+        recognizer_gemini = GeminiRecognizer()
+
+        model_config_gemini = ModelConfig(
+            model_name=config.faster_whisper.model,  # Not used for Gemini but required
+            device="auto",  # Not applicable for cloud
+            compute_type="float32",  # Not applicable for cloud
+            beam_size=1,  # Not applicable for cloud
+            language=config.faster_whisper.language,
+            vad_filter=False,
+            model_path=None,
+            provider="gemini",
+            api_key=api_key,
+            api_endpoint=config.gemini.api_endpoint,
+            enable_grammar_correction=config.gemini.enable_grammar_correction,
+        )
+
+        await recognizer_gemini.initialize(model_config_gemini)
+        return recognizer_gemini
+
+    # Unknown provider - fallback to Whisper with warning
+    logger.warning(f"Unknown provider: {provider_name}, falling back to Whisper (offline)")
+    return await create_speech_recognizer(config, provider="whisper")
 
 
 async def create_keyboard_simulator(config: Config) -> IKeyboardSimulator:

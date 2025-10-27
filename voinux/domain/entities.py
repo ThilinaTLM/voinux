@@ -55,7 +55,7 @@ class TranscriptionResult:
 
 @dataclass(frozen=True)
 class ModelConfig:
-    """Configuration for the Whisper model."""
+    """Configuration for speech recognition (offline or cloud)."""
 
     model_name: str  # Model size (tiny, base, small, medium, large-v3, large-v3-turbo)
     device: str  # Device to run on ("cuda", "cpu", "auto")
@@ -64,6 +64,11 @@ class ModelConfig:
     language: str | None  # Target language (None for auto-detection)
     vad_filter: bool  # Whether to use VAD filtering
     model_path: str | None  # Custom model path (None for default cache)
+    # Cloud provider fields (optional, for cloud STT)
+    provider: str = "whisper"  # Provider name ("whisper", "gemini") - always defaults to whisper
+    api_key: str | None = None  # API key for cloud providers (None for offline)
+    api_endpoint: str | None = None  # Custom API endpoint (None for default)
+    enable_grammar_correction: bool = False  # Enable grammar correction (cloud only)
 
     def __post_init__(self) -> None:
         """Validate model configuration."""
@@ -85,6 +90,15 @@ class ModelConfig:
 
         if self.beam_size < 1:
             raise ValueError(f"beam_size must be >= 1, got {self.beam_size}")
+
+        # Validate provider
+        valid_providers = {"whisper", "gemini"}
+        if self.provider not in valid_providers:
+            raise ValueError(f"Invalid provider: {self.provider}. Must be one of {valid_providers}")
+
+        # Cloud provider validation
+        if self.provider != "whisper" and not self.api_key:
+            raise ValueError(f"API key required for cloud provider: {self.provider}")
 
 
 @dataclass(frozen=True)
@@ -220,6 +234,9 @@ class TranscriptionSession:
     total_utterances_processed: int = 0
     total_utterance_duration_ms: int = 0
     total_buffer_overflows: int = 0  # Times max buffer was hit
+    # Cloud provider cost tracking
+    total_tokens_used: int = 0  # Total tokens consumed (cloud providers only)
+    estimated_cost_usd: float = 0.0  # Estimated cost in USD (cloud providers only)
     is_active: bool = True
     ended_at: datetime | None = None
 
@@ -251,6 +268,16 @@ class TranscriptionSession:
     def record_typing(self, character_count: int) -> None:
         """Record characters typed to output."""
         self.total_characters_typed += character_count
+
+    def record_cloud_usage(self, tokens: int, cost_per_million_tokens: float = 1.00) -> None:
+        """Record cloud provider token usage and cost.
+
+        Args:
+            tokens: Number of tokens consumed
+            cost_per_million_tokens: Cost per 1 million tokens in USD (default: $1.00 for Gemini)
+        """
+        self.total_tokens_used += tokens
+        self.estimated_cost_usd = (self.total_tokens_used / 1_000_000) * cost_per_million_tokens
 
     def end(self) -> None:
         """Mark the session as ended."""

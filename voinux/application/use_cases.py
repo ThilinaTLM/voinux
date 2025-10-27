@@ -25,13 +25,22 @@ logger = logging.getLogger(__name__)
 class StartTranscription:
     """Use case for starting real-time transcription."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(
+        self,
+        config: Config,
+        provider: str | None = None,
+        api_key_override: str | None = None,
+    ) -> None:
         """Initialize the use case.
 
         Args:
             config: Application configuration
+            provider: Provider override (None to use default "whisper")
+            api_key_override: API key override from CLI
         """
         self.config = config
+        self.provider = provider
+        self.api_key_override = api_key_override
         self.pipeline: TranscriptionPipeline | None = None
         self.session_manager = SessionManager()
 
@@ -58,7 +67,9 @@ class StartTranscription:
         try:
             logger.info("Starting transcription use case")
 
-            # Create session
+            # Create session with provider info
+            actual_provider = self.provider or "whisper"
+
             model_config = ModelConfig(
                 model_name=self.config.faster_whisper.model,
                 device=self.config.faster_whisper.device,
@@ -67,6 +78,7 @@ class StartTranscription:
                 language=self.config.faster_whisper.language,
                 vad_filter=False,
                 model_path=self.config.faster_whisper.model_path,
+                provider=actual_provider,
             )
 
             session = self.session_manager.create_session(model_config)
@@ -95,7 +107,9 @@ class StartTranscription:
             audio_capture = await create_audio_capture(self.config)
             vad = await create_vad(self.config)
             noise_suppressor = await create_noise_suppressor(self.config)
-            recognizer = await create_speech_recognizer(self.config)
+            recognizer = await create_speech_recognizer(
+                self.config, provider=self.provider, api_key_override=self.api_key_override
+            )
             keyboard = await create_keyboard_simulator(self.config)
             logger.info("All components initialized successfully")
 

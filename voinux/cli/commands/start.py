@@ -24,6 +24,21 @@ logger = logging.getLogger(__name__)
 @click.option("--device", type=click.Choice(["cuda", "cpu", "auto"]), help="Device to use")
 @click.option("--language", "-l", type=str, help="Target language code (e.g., 'en', 'es')")
 @click.option("--no-vad", is_flag=True, help="Disable voice activation detection")
+@click.option(
+    "--provider",
+    type=click.Choice(["whisper", "gemini"]),
+    help="STT provider (default: whisper for offline)",
+)
+@click.option(
+    "--api-key",
+    type=str,
+    help="API key for cloud provider (or set GEMINI_API_KEY env var)",
+)
+@click.option(
+    "--enable-grammar/--no-grammar",
+    default=None,
+    help="Enable grammar correction (cloud providers only)",
+)
 @click.option("--continuous", "-c", is_flag=True, help="Continuous mode (restart on errors)")
 @click.pass_context
 def start(
@@ -32,7 +47,10 @@ def start(
     device: str | None,
     language: str | None,
     no_vad: bool,
-    _continuous: bool,  # Reserved for future use
+    provider: str | None,
+    api_key: str | None,
+    enable_grammar: bool | None,
+    continuous: bool,  # Reserved for future use  # noqa: ARG001
 ) -> None:
     """Start real-time voice transcription.
 
@@ -41,6 +59,8 @@ def start(
     console: Console = ctx.obj["console"]
 
     async def _start() -> None:
+        from voinux.cli.privacy import show_cloud_privacy_notice, show_provider_indicator
+
         logger.info("Start command invoked")
 
         # Load configuration
@@ -58,11 +78,36 @@ def start(
         if no_vad:
             cli_overrides.setdefault("vad", {})["enabled"] = False
 
+        # Cloud provider overrides
+        if provider:
+            cli_overrides["provider"] = provider
+        if api_key:
+            cli_overrides.setdefault("gemini", {})["api_key"] = api_key
+        if enable_grammar is not None:
+            cli_overrides.setdefault("gemini", {})["enable_grammar_correction"] = enable_grammar
+
         logger.debug("Loading configuration with CLI overrides: %s", cli_overrides)
         config = await loader.load(cli_overrides=cli_overrides)
 
+        # Determine actual provider (defaults to whisper)
+        actual_provider = provider or "whisper"
+
+        # Privacy notice for cloud providers - get consent if not acknowledged
+        if (
+            actual_provider != "whisper"
+            and not config.gemini.privacy_acknowledged
+            and not show_cloud_privacy_notice(actual_provider)
+        ):
+            # User declined - fall back to offline Whisper
+            console.print()
+            actual_provider = "whisper"
+
         # Display configuration
         console.print(Panel("[bold cyan]Voinux Voice Transcription[/bold cyan]", expand=False))
+        console.print()
+
+        # Show provider indicator
+        show_provider_indicator(actual_provider, is_online=(actual_provider != "whisper"))
         console.print()
 
         config_table = Table(show_header=False, box=None)
@@ -86,8 +131,8 @@ def start(
             config.faster_whisper.language or "auto",
         )
 
-        # Create use case
-        use_case = StartTranscription(config)
+        # Create use case with provider override
+        use_case = StartTranscription(config, provider=actual_provider, api_key_override=api_key)
 
         # Status callback
         def on_status(status: str) -> None:
@@ -116,6 +161,11 @@ def start(
             stats_table.add_row("Characters Typed", str(session.total_characters_typed))
             if config.vad.enabled:
                 stats_table.add_row("VAD Efficiency", f"{session.vad_efficiency_percent:.1f}%")
+
+            # Show cloud provider cost tracking
+            if actual_provider != "whisper" and session.total_tokens_used > 0:
+                stats_table.add_row("Tokens Used", str(session.total_tokens_used))
+                stats_table.add_row("Estimated Cost", f"${session.estimated_cost_usd:.4f}")
 
             console.print(stats_table)
 

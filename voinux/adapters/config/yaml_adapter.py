@@ -159,6 +159,29 @@ keyboard:
   # Add space after each transcription
   add_space_after: true
 
+# Cloud Provider Configuration (OPTIONAL - requires explicit opt-in)
+# WARNING: Cloud providers send audio data over the internet
+# Default is 100% offline. Only enable if you accept privacy/cost trade-offs.
+#
+# gemini:
+#   # API key for Google Gemini (get from https://aistudio.google.com/app/apikey)
+#   # Can also be set via GEMINI_API_KEY environment variable
+#   api_key: YOUR_API_KEY_HERE
+#
+#   # Enable AI-powered grammar correction (cloud only)
+#   enable_grammar_correction: true
+#
+#   # Privacy acknowledgment (must be true to use cloud providers)
+#   # Set to true to confirm you understand data is sent to Google servers
+#   privacy_acknowledged: false
+#
+#   # Cost protection limits (USD)
+#   max_monthly_cost_usd: 20.00
+#   warn_at_cost_usd: 15.00
+#
+#   # Custom API endpoint (null for default)
+#   api_endpoint: null
+
 # System Configuration
 system:
   # Cache directory for models

@@ -250,6 +250,18 @@ class TranscriptionPipeline:
                 was_overflow=was_overflow,
             )
 
+            # Record cloud provider cost (if using cloud provider)
+            if self.session.model_config.provider != "whisper":
+                # Estimate tokens used for cloud provider (32 tokens/sec for Gemini)
+                duration_sec = utterance_duration_ms / 1000.0
+                estimated_tokens = int(duration_sec * 32)  # Gemini token rate
+                self.session.record_cloud_usage(estimated_tokens)
+                logger.debug(
+                    "Cloud usage: %d tokens, total cost: $%.4f",
+                    estimated_tokens,
+                    self.session.estimated_cost_usd,
+                )
+
             # Type the transcribed text
             if result.text.strip():
                 logger.debug("Typing transcribed text (%d characters)", len(result.text))

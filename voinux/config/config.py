@@ -65,6 +65,18 @@ class NoiseSuppressionConfig:
 
 
 @dataclass
+class GeminiConfig:
+    """Configuration for Google Gemini cloud provider (optional)."""
+
+    api_key: str | None = None  # API key for Gemini (None = not configured)
+    enable_grammar_correction: bool = True  # Enable AI-powered grammar correction
+    privacy_acknowledged: bool = False  # User must acknowledge privacy trade-offs
+    max_monthly_cost_usd: float = 20.00  # Maximum monthly cost limit in USD
+    warn_at_cost_usd: float = 15.00  # Warning threshold in USD
+    api_endpoint: str | None = None  # Custom API endpoint (None for default)
+
+
+@dataclass
 class SystemConfig:
     """System-level configuration."""
 
@@ -84,6 +96,7 @@ class Config:
     keyboard: KeyboardConfig = field(default_factory=KeyboardConfig)
     buffering: BufferingConfig = field(default_factory=BufferingConfig)
     noise_suppression: NoiseSuppressionConfig = field(default_factory=NoiseSuppressionConfig)
+    gemini: GeminiConfig = field(default_factory=GeminiConfig)
     system: SystemConfig = field(default_factory=SystemConfig)
 
     @classmethod
@@ -178,6 +191,19 @@ class Config:
                 f"Invalid log_level: {self.system.log_level}. Must be one of {valid_log_levels}"
             )
 
+        # Validate gemini config
+        if self.gemini.max_monthly_cost_usd < 0:
+            raise ValueError(
+                f"max_monthly_cost_usd must be >= 0, got {self.gemini.max_monthly_cost_usd}"
+            )
+        if self.gemini.warn_at_cost_usd < 0:
+            raise ValueError(f"warn_at_cost_usd must be >= 0, got {self.gemini.warn_at_cost_usd}")
+        if self.gemini.warn_at_cost_usd > self.gemini.max_monthly_cost_usd:
+            raise ValueError(
+                f"warn_at_cost_usd ({self.gemini.warn_at_cost_usd}) must be <= "
+                f"max_monthly_cost_usd ({self.gemini.max_monthly_cost_usd})"
+            )
+
     def merge_with_overrides(self, overrides: dict[str, any]) -> "Config":  # type: ignore[valid-type]
         """Create a new config with overrides applied.
 
@@ -200,6 +226,7 @@ class Config:
             noise_suppression=NoiseSuppressionConfig(
                 **{**vars(self.noise_suppression), **overrides.get("noise_suppression", {})}
             ),
+            gemini=GeminiConfig(**{**vars(self.gemini), **overrides.get("gemini", {})}),
             system=SystemConfig(**{**vars(self.system), **overrides.get("system", {})}),
         )
         new_config.validate()

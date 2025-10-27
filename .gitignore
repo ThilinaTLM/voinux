@@ -8,3 +8,5 @@ wheels/
 .pytest_cache
 .claude
 CLAUDE.md
+openspec
+AGENTS.md

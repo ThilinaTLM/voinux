@@ -86,3 +86,58 @@ def config_path(ctx: click.Context) -> None:
             console.print("Run 'voinux config init' to create it")
 
     asyncio.run(_check())
+
+
+@config_group.command(name="set-api-key")
+@click.argument("provider", type=click.Choice(["gemini"]))
+@click.argument("api_key", type=str)
+@click.pass_context
+def config_set_api_key(ctx: click.Context, provider: str, api_key: str) -> None:
+    """Set API key for a cloud provider.
+
+    PROVIDER: Cloud provider name (gemini)
+
+    API_KEY: Your API key for the provider
+    """
+    console: Console = ctx.obj["console"]
+
+    async def _set_key() -> None:
+        # Load existing config
+        config_file = ctx.obj.get("config_file")
+        loader = ConfigLoader(config_file=config_file)
+
+        # Check if config exists, if not create it
+        if not await loader.exists():
+            console.print("[yellow]Config file doesn't exist, creating...[/yellow]")
+            await loader.create_default()
+
+        config = await loader.load()
+
+        # Update provider config
+        if provider == "gemini":
+            from voinux.config.config import GeminiConfig
+
+            config.gemini = GeminiConfig(
+                api_key=api_key,
+                enable_grammar_correction=config.gemini.enable_grammar_correction,
+                privacy_acknowledged=config.gemini.privacy_acknowledged,
+                max_monthly_cost_usd=config.gemini.max_monthly_cost_usd,
+                warn_at_cost_usd=config.gemini.warn_at_cost_usd,
+                api_endpoint=config.gemini.api_endpoint,
+            )
+
+        # Save updated config
+        await loader.save(config)
+
+        # Redact API key for display
+        from voinux.application.api_key_manager import APIKeyManager
+
+        redacted_key = APIKeyManager.redact_api_key(api_key)
+        console.print(f"[green]✓ API key set for {provider}: {redacted_key}[/green]")
+        console.print()
+        console.print(
+            f"[yellow]Note: Set '{provider}.privacy_acknowledged: true' in config "
+            "to skip privacy notice[/yellow]"
+        )
+
+    asyncio.run(_set_key())

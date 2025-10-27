@@ -40,6 +40,10 @@ rocm = [
     # ROCm PyTorch must be installed separately from pytorch.org
     # See: https://pytorch.org/get-started/locally/ for ROCm installation
 ]
+cloud = [
+    # Google Gemini cloud provider support
+    "google-genai>=0.2.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
@@ -73,7 +77,7 @@ disallow_untyped_defs = true
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
-module = ["webrtcvad", "faster_whisper", "faster_whisper.*", "soundcard", "click", "rich", "rich.*", "numpy", "numpy.*", "torch", "torch.*", "noisereduce", "noisereduce.*"]
+module = ["webrtcvad", "faster_whisper", "faster_whisper.*", "soundcard", "click", "rich", "rich.*", "numpy", "numpy.*", "torch", "torch.*", "noisereduce", "noisereduce.*", "google", "google.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
