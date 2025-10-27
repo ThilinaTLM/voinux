@@ -8,9 +8,9 @@ from typing import Any
 
 from voinux.application.factories import (
     create_audio_capture,
+    create_audio_processor,
     create_keyboard_simulator,
     create_model_manager,
-    create_noise_suppressor,
     create_speech_recognizer,
     create_vad,
 )
@@ -30,6 +30,7 @@ class StartTranscription:
         config: Config,
         provider: str | None = None,
         api_key_override: str | None = None,
+        enable_silence_trimming: bool | None = None,
     ) -> None:
         """Initialize the use case.
 
@@ -37,10 +38,12 @@ class StartTranscription:
             config: Application configuration
             provider: Provider override (None to use default "whisper")
             api_key_override: API key override from CLI
+            enable_silence_trimming: Silence trimming override (None for auto based on provider)
         """
         self.config = config
         self.provider = provider
         self.api_key_override = api_key_override
+        self.enable_silence_trimming = enable_silence_trimming
         self.pipeline: TranscriptionPipeline | None = None
         self.session_manager = SessionManager()
 
@@ -118,7 +121,15 @@ class StartTranscription:
             logger.info("Initializing components")
             audio_capture = await create_audio_capture(self.config)
             vad = await create_vad(self.config)
-            noise_suppressor = await create_noise_suppressor(self.config)
+            # Create audio processor with silence trimming (auto-enabled for cloud providers)
+            # If enable_silence_trimming is None, it defaults based on provider
+            audio_processor = await create_audio_processor(
+                self.config,
+                enable_silence_trimming=self.enable_silence_trimming
+                if self.enable_silence_trimming is not None
+                else False,
+                provider=actual_provider,
+            )
             recognizer = await create_speech_recognizer(
                 self.config, provider=self.provider, api_key_override=self.api_key_override
             )
@@ -141,7 +152,7 @@ class StartTranscription:
                 session=session,
                 buffer_config=buffer_config,
                 vad_enabled=self.config.vad.enabled,
-                noise_suppressor=noise_suppressor,
+                noise_suppressor=audio_processor,
                 on_audio_chunk=on_audio_chunk,
             )
 

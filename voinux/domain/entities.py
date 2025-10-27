@@ -69,6 +69,16 @@ class ModelConfig:
     api_key: str | None = None  # API key for cloud providers (None for offline)
     api_endpoint: str | None = None  # Custom API endpoint (None for default)
     enable_grammar_correction: bool = False  # Enable grammar correction (cloud only)
+    # Silence trimming fields (for cost optimization with cloud providers)
+    enable_silence_trimming: bool = (
+        False  # Trim silence from start/end of audio (default: False for Whisper, True for cloud)
+    )
+    silence_threshold_db: float = (
+        -40.0
+    )  # Silence detection threshold in decibels (default: -40.0 dB)
+    min_audio_duration_ms: int = (
+        100  # Minimum audio duration to preserve after trimming (default: 100ms)
+    )
 
     def __post_init__(self) -> None:
         """Validate model configuration."""
@@ -99,6 +109,14 @@ class ModelConfig:
         # Cloud provider validation
         if self.provider != "whisper" and not self.api_key:
             raise ValueError(f"API key required for cloud provider: {self.provider}")
+
+        # Silence trimming validation
+        if self.silence_threshold_db > 0:
+            raise ValueError(f"silence_threshold_db must be <= 0, got {self.silence_threshold_db}")
+        if self.min_audio_duration_ms < 0:
+            raise ValueError(
+                f"min_audio_duration_ms must be >= 0, got {self.min_audio_duration_ms}"
+            )
 
 
 @dataclass(frozen=True)

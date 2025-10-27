@@ -39,6 +39,11 @@ logger = logging.getLogger(__name__)
     default=None,
     help="Enable grammar correction (cloud providers only)",
 )
+@click.option(
+    "--enable-silence-trimming/--no-silence-trimming",
+    default=None,
+    help="Trim silence from audio (auto-enabled for cloud providers, reduces costs)",
+)
 @click.option("--continuous", "-c", is_flag=True, help="Continuous mode (restart on errors)")
 @click.pass_context
 def start(
@@ -50,6 +55,7 @@ def start(
     provider: str | None,
     api_key: str | None,
     enable_grammar: bool | None,
+    enable_silence_trimming: bool | None,
     continuous: bool,  # Reserved for future use  # noqa: ARG001
 ) -> None:
     """Start real-time voice transcription.
@@ -131,8 +137,13 @@ def start(
             config.faster_whisper.language or "auto",
         )
 
-        # Create use case with provider override
-        use_case = StartTranscription(config, provider=actual_provider, api_key_override=api_key)
+        # Create use case with provider override and silence trimming option
+        use_case = StartTranscription(
+            config,
+            provider=actual_provider,
+            api_key_override=api_key,
+            enable_silence_trimming=enable_silence_trimming,
+        )
 
         # Status callback
         def on_status(status: str) -> None:

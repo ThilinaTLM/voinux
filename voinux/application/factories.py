@@ -2,6 +2,8 @@
 
 import os
 
+from voinux.adapters.audio.composite_processor import CompositeAudioProcessor
+from voinux.adapters.audio.silence_trimmer import SilenceTrimmer
 from voinux.adapters.audio.soundcard_adapter import SoundCardAudioCapture
 from voinux.adapters.keyboard.stdout_adapter import StdoutKeyboard
 from voinux.adapters.keyboard.xdotool_adapter import XDotoolKeyboard
@@ -56,8 +58,57 @@ async def create_vad(config: Config) -> IVoiceActivationDetector:
     return vad
 
 
+async def create_audio_processor(
+    config: Config, enable_silence_trimming: bool = False, provider: str = "whisper"
+) -> IAudioProcessor | None:
+    """Create an audio processor (noise suppressor and/or silence trimmer).
+
+    Args:
+        config: Application configuration
+        enable_silence_trimming: Whether to enable silence trimming
+        provider: Provider name (for determining default silence trimming behavior)
+
+    Returns:
+        IAudioProcessor | None: Audio processor adapter, or None if all disabled
+    """
+    processors: list[IAudioProcessor] = []
+
+    # Add noise suppressor if enabled
+    if config.noise_suppression.enabled:
+        noise_processor = NoiseReduceProcessor(
+            stationary=config.noise_suppression.stationary,
+            prop_decrease=config.noise_suppression.prop_decrease,
+            freq_mask_smooth_hz=config.noise_suppression.freq_mask_smooth_hz,
+            time_mask_smooth_ms=config.noise_suppression.time_mask_smooth_ms,
+        )
+        await noise_processor.initialize(sample_rate=config.audio.sample_rate)
+        processors.append(noise_processor)
+
+    # Add silence trimmer if enabled (default: True for cloud providers, False for Whisper)
+    should_trim = enable_silence_trimming or (provider != "whisper")
+    if should_trim:
+        silence_trimmer = SilenceTrimmer(
+            threshold_db=-40.0,  # Default threshold
+            min_audio_duration_ms=100,  # Minimum 100ms preserved
+        )
+        await silence_trimmer.initialize(sample_rate=config.audio.sample_rate)
+        processors.append(silence_trimmer)
+
+    # Return None if no processors
+    if not processors:
+        return None
+
+    # Return single processor directly, or wrap multiple in composite
+    if len(processors) == 1:
+        return processors[0]
+
+    return CompositeAudioProcessor(processors)
+
+
 async def create_noise_suppressor(config: Config) -> IAudioProcessor | None:
     """Create a noise suppression adapter based on configuration.
+
+    DEPRECATED: Use create_audio_processor instead. Kept for backward compatibility.
 
     Args:
         config: Application configuration
@@ -65,17 +116,7 @@ async def create_noise_suppressor(config: Config) -> IAudioProcessor | None:
     Returns:
         IAudioProcessor | None: Noise suppressor adapter, or None if disabled
     """
-    if not config.noise_suppression.enabled:
-        return None
-
-    processor = NoiseReduceProcessor(
-        stationary=config.noise_suppression.stationary,
-        prop_decrease=config.noise_suppression.prop_decrease,
-        freq_mask_smooth_hz=config.noise_suppression.freq_mask_smooth_hz,
-        time_mask_smooth_ms=config.noise_suppression.time_mask_smooth_ms,
-    )
-    await processor.initialize(sample_rate=config.audio.sample_rate)
-    return processor
+    return await create_audio_processor(config, enable_silence_trimming=False, provider="whisper")
 
 
 async def create_speech_recognizer(
